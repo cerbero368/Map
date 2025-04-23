@@ -297,9 +297,9 @@ fetch('Municipios.geojson')
   .then(data => {
     L.geoJSON(data, {
       style: {
-        color: '#008000',
+        color: '#000000',
         weight: 1.5,
-        fillOpacity: 0.1
+        fillOpacity: 0
       },
       onEachFeature: function (feature, layer) {
         if (feature.properties && feature.properties.NOMBRE) {
