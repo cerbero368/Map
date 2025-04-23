@@ -1,3 +1,4 @@
+<!-- Archivo: index.html -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -166,12 +167,18 @@
     const name = select.value;
     if (!name) return alert("Debes seleccionar un nombre.");
     const timestamp = new Date().toISOString();
-    const geojson = tempLayer.toGeoJSON();
-    geojson.properties = { name, timestamp };
+    const geometry = tempLayer.toGeoJSON().geometry;
+
+    tempLayer.feature = {
+      type: "Feature",
+      properties: { name, timestamp },
+      geometry: geometry
+    };
+
+    features.push(tempLayer.feature);
     tempLayer.bindPopup(`<b>${name}</b><br>Fecha: ${timestamp}`);
     tempLayer.bindTooltip(name, { permanent: true, direction: "top" });
     drawnItems.addLayer(tempLayer);
-    features.push(geojson);
     actualizarCapaGeoJSON();
     document.getElementById("nameModal").style.display = "none";
     select.selectedIndex = 0;
@@ -187,6 +194,18 @@
 
   map.on(L.Draw.Event.CREATED, function (e) {
     mostrarModal(e.layer);
+  });
+
+  map.on(L.Draw.Event.EDITED, function (e) {
+    const layers = e.layers;
+    layers.eachLayer(function (layer) {
+      const updated = layer.toGeoJSON();
+      const index = features.findIndex(f => f.properties.name === layer.feature?.properties?.name);
+      if (index !== -1) {
+        features[index] = updated;
+      }
+    });
+    actualizarCapaGeoJSON();
   });
 
   document.getElementById('downloadGeoJSON').addEventListener('click', () => {
@@ -220,7 +239,12 @@
           geoJsonLayer.clearLayers();
           drawnItems.clearLayers();
           json.features.forEach(f => {
-            const layer = L.geoJSON(f).getLayers()[0];
+            const layer = L.geoJSON(f, {
+              onEachFeature: function (feature, layer) {
+                layer.feature = feature;
+              }
+            }).getLayers()[0];
+
             if (!layer) return;
 
             if (layer instanceof L.Marker) {
@@ -235,12 +259,12 @@
               });
             }
 
-            drawnItems.addLayer(layer);
-
             if (f.properties && f.properties.name) {
               layer.bindPopup(`<b>${f.properties.name}</b><br>Fecha: ${f.properties.timestamp || 'N/A'}`);
               layer.bindTooltip(f.properties.name, { permanent: true, direction: "top" });
             }
+
+            drawnItems.addLayer(layer);
           });
           geoJsonLayer.addData(features);
           alert("GeoJSON cargado correctamente.");
