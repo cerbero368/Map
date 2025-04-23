@@ -74,7 +74,7 @@
     <option value="ACUEDUCTO">ACUEDUCTO</option>
     <option value="AEROPUERTO">AEROPUERTO</option>
     <option value="ALCALDIA">ALCALDIA</option>
-    <!-- puedes dejar los demás como estaban -->
+    <!-- Puedes continuar con las demás opciones aquí -->
   </select>
   <div class="button-row">
     <button id="confirmName">Aceptar</button>
@@ -88,7 +88,7 @@
 <script src="https://unpkg.com/esri-leaflet"></script>
 
 <script>
-  const map = L.map('map').setView([5.613379, -73.132000], 10);
+  const map = L.map('map').setView([5.613379, -73.132000], 8);
 
   const openStreetMap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
@@ -110,7 +110,7 @@
     "Google Earth Híbrido": googleHybrid
   };
 
-  L.control.layers(baseLayers, null, { collapsed: false }).addTo(map);
+  let overlays = {};
   L.Control.geocoder().addTo(map);
 
   const drawnItems = new L.FeatureGroup().addTo(map);
@@ -236,22 +236,25 @@
     reader.readAsText(file);
   });
 
-  // 🔄 Cargar GeoJSON de Boyacá desde archivo externo
-  fetch('Boyaca.geojson')
+  // ✅ Cargar GeoJSON externo como capa activable
+  let layerBoyaca = null;
+  fetch('boyaca.geojson')
     .then(response => response.json())
     .then(data => {
-      L.geoJSON(data, {
+      layerBoyaca = L.geoJSON(data, {
         style: {
-          color: '#000000',
+          color: '#ff6600',
           weight: 2,
-          fillOpacity: 0
+          fillOpacity: 0.1
         }
       }).addTo(map);
+
+      overlays["Departamento de Boyacá"] = layerBoyaca;
+      L.control.layers(baseLayers, overlays, { collapsed: false }).addTo(map);
     })
     .catch(err => {
-      console.error("Error al cargar Boyacá.geojson:", err);
+      console.error("Error al cargar boyaca.geojson:", err);
     });
-
 </script>
 </body>
 </html>
