@@ -74,7 +74,6 @@
     <option value="ACUEDUCTO">ACUEDUCTO</option>
     <option value="AEROPUERTO">AEROPUERTO</option>
     <option value="ALCALDIA">ALCALDIA</option>
-    <!-- puedes dejar los demás como estaban -->
   </select>
   <div class="button-row">
     <button id="confirmName">Aceptar</button>
@@ -146,6 +145,19 @@
 
   function mostrarModal(layer) {
     tempLayer = layer;
+
+    if (tempLayer instanceof L.Marker) {
+      tempLayer.options.draggable = true;
+      tempLayer.on('dragend', function () {
+        const updated = tempLayer.toGeoJSON();
+        const index = features.findIndex(f => f.properties.name === updated.properties.name);
+        if (index !== -1) {
+          features[index].geometry = updated.geometry;
+          actualizarCapaGeoJSON();
+        }
+      });
+    }
+
     document.getElementById("nameModal").style.display = "block";
   }
 
@@ -158,11 +170,7 @@
     geojson.properties = { name, timestamp };
     tempLayer.bindPopup(`<b>${name}</b><br>Fecha: ${timestamp}`);
     tempLayer.bindTooltip(name, { permanent: true, direction: "top" });
-    if (geojson.geometry.type === "Point") {
-      tempLayer.addTo(map);
-    } else {
-      drawnItems.addLayer(tempLayer);
-    }
+    drawnItems.addLayer(tempLayer);
     features.push(geojson);
     actualizarCapaGeoJSON();
     document.getElementById("nameModal").style.display = "none";
@@ -214,11 +222,21 @@
           json.features.forEach(f => {
             const layer = L.geoJSON(f).getLayers()[0];
             if (!layer) return;
-            if (f.geometry.type === "Polygon" || f.geometry.type === "MultiPolygon") {
-              drawnItems.addLayer(layer);
-            } else {
-              layer.addTo(map);
+
+            if (layer instanceof L.Marker) {
+              layer.options.draggable = true;
+              layer.on('dragend', function () {
+                const updated = layer.toGeoJSON();
+                const index = features.findIndex(ff => ff.properties.name === updated.properties.name);
+                if (index !== -1) {
+                  features[index].geometry = updated.geometry;
+                  actualizarCapaGeoJSON();
+                }
+              });
             }
+
+            drawnItems.addLayer(layer);
+
             if (f.properties && f.properties.name) {
               layer.bindPopup(`<b>${f.properties.name}</b><br>Fecha: ${f.properties.timestamp || 'N/A'}`);
               layer.bindTooltip(f.properties.name, { permanent: true, direction: "top" });
@@ -236,7 +254,7 @@
     reader.readAsText(file);
   });
 
-  // 🔄 Cargar GeoJSON de Boyacá desde archivo externo
+  // 🔄 Cargar perímetro de Boyacá
   fetch('Boyaca.geojson')
     .then(response => response.json())
     .then(data => {
@@ -251,7 +269,6 @@
     .catch(err => {
       console.error("Error al cargar Boyacá.geojson:", err);
     });
-
 </script>
 </body>
 </html>
