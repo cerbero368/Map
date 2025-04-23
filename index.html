@@ -74,7 +74,7 @@
     <option value="ACUEDUCTO">ACUEDUCTO</option>
     <option value="AEROPUERTO">AEROPUERTO</option>
     <option value="ALCALDIA">ALCALDIA</option>
-    <!-- Puedes continuar con las demás opciones aquí -->
+    <!-- puedes dejar los demás como estaban -->
   </select>
   <div class="button-row">
     <button id="confirmName">Aceptar</button>
@@ -110,7 +110,7 @@
     "Google Earth Híbrido": googleHybrid
   };
 
-  let overlays = {};
+  L.control.layers(baseLayers, null, { collapsed: false }).addTo(map);
   L.Control.geocoder().addTo(map);
 
   const drawnItems = new L.FeatureGroup().addTo(map);
@@ -236,25 +236,22 @@
     reader.readAsText(file);
   });
 
-  // ✅ Cargar GeoJSON externo como capa activable
-  let layerBoyaca = null;
-  fetch('boyaca.geojson')
+  // 🔄 Cargar GeoJSON de Boyacá desde archivo externo
+  fetch('Boyaca.geojson')
     .then(response => response.json())
     .then(data => {
-      layerBoyaca = L.geoJSON(data, {
+      L.geoJSON(data, {
         style: {
-          color: '#ff6600',
+          color: '#000000',
           weight: 2,
-          fillOpacity: 0.1
+          fillOpacity: 0
         }
       }).addTo(map);
-
-      overlays["Departamento de Boyacá"] = layerBoyaca;
-      L.control.layers(baseLayers, overlays, { collapsed: false }).addTo(map);
     })
     .catch(err => {
-      console.error("Error al cargar boyaca.geojson:", err);
+      console.error("Error al cargar Boyacá.geojson:", err);
     });
+
 </script>
 </body>
 </html>
