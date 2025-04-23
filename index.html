@@ -110,17 +110,14 @@
     "Google Earth Híbrido": googleHybrid
   };
 
+
   L.Control.geocoder().addTo(map);
 
   const drawnItems = new L.FeatureGroup().addTo(map);
   const geoJsonLayer = L.geoJSON(null, {
     onEachFeature: function (feature, layer) {
       if (feature.properties && feature.properties.name) {
-        layer.bindPopup(`
-          <b>${feature.properties.name}</b><br>
-          Fecha: ${feature.properties.timestamp || 'N/A'}<br>
-          <button onclick="eliminarFeature('${feature.properties.name}')">Eliminar</button>
-        `);
+        layer.bindPopup(`<b>${feature.properties.name}</b><br>Fecha: ${feature.properties.timestamp || 'N/A'}`);
         layer.bindTooltip(feature.properties.name, { permanent: true, direction: "top" });
       }
     }
@@ -145,20 +142,6 @@
   function actualizarCapaGeoJSON() {
     geoJsonLayer.clearLayers();
     geoJsonLayer.addData(features);
-  }
-
-  function eliminarFeature(nombre) {
-    const index = features.findIndex(f => f.properties.name === nombre);
-    if (index !== -1) {
-      features.splice(index, 1);
-      actualizarCapaGeoJSON();
-      drawnItems.eachLayer(layer => {
-        if (layer.feature && layer.feature.properties.name === nombre) {
-          drawnItems.removeLayer(layer);
-        }
-      });
-      alert(`Elemento "${nombre}" eliminado.`);
-    }
   }
 
   function mostrarModal(layer) {
@@ -193,11 +176,7 @@
     };
 
     features.push(tempLayer.feature);
-    tempLayer.bindPopup(`
-      <b>${name}</b><br>
-      Fecha: ${timestamp}<br>
-      <button onclick="eliminarFeature('${name}')">Eliminar</button>
-    `);
+    tempLayer.bindPopup(`<b>${name}</b><br>Fecha: ${timestamp}`);
     tempLayer.bindTooltip(name, { permanent: true, direction: "top" });
     drawnItems.addLayer(tempLayer);
     actualizarCapaGeoJSON();
@@ -281,11 +260,7 @@
             }
 
             if (f.properties && f.properties.name) {
-              layer.bindPopup(`
-                <b>${f.properties.name}</b><br>
-                Fecha: ${f.properties.timestamp || 'N/A'}<br>
-                <button onclick="eliminarFeature('${f.properties.name}')">Eliminar</button>
-              `);
+              layer.bindPopup(`<b>${f.properties.name}</b><br>Fecha: ${f.properties.timestamp || 'N/A'}`);
               layer.bindTooltip(f.properties.name, { permanent: true, direction: "top" });
             }
 
@@ -303,50 +278,51 @@
     reader.readAsText(file);
   });
 
-  // Cargar perímetro de Boyacá
-  const boyacaLayer = L.geoJSON(null, {
-    style: {
-      color: '#000000',
-      weight: 2,
-      fillOpacity: 0
+
+// Cargar perímetro de Boyacá
+const boyacaLayer = L.geoJSON(null, {
+  style: {
+    color: '#000000',
+    weight: 2,
+    fillOpacity: 0
+  }
+}).addTo(map);
+
+fetch('Boyaca.geojson')
+  .then(response => response.json())
+  .then(data => boyacaLayer.addData(data))
+  .catch(err => console.error("Error al cargar Boyaca.geojson:", err));
+
+// Cargar Municipios
+const municipiosLayer = L.geoJSON(null, {
+  style: {
+    color: '#000000',
+    weight: 1.5,
+    fillOpacity: 0
+  },
+  onEachFeature: function (feature, layer) {
+    if (feature.properties && feature.properties.NOMBRE) {
+      layer.bindTooltip(feature.properties.NOMBRE, {
+        permanent: false,
+        direction: "center",
+        className: "municipio-tooltip"
+      });
     }
-  });
+  }
+}).addTo(map);
 
-  fetch('Boyaca.geojson')
-    .then(response => response.json())
-    .then(data => boyacaLayer.addData(data))
-    .catch(err => console.error("Error al cargar Boyaca.geojson:", err));
+fetch('Municipios.geojson')
+  .then(response => response.json())
+  .then(data => municipiosLayer.addData(data))
+  .catch(err => console.error("Error al cargar Municipios.geojson:", err));
 
-  // Cargar Municipios
-  const municipiosLayer = L.geoJSON(null, {
-    style: {
-      color: '#000000',
-      weight: 1.5,
-      fillOpacity: 0
-    },
-    onEachFeature: function (feature, layer) {
-      if (feature.properties && feature.properties.NOMBRE) {
-        layer.bindTooltip(feature.properties.NOMBRE, {
-          permanent: false,
-          direction: "center",
-          className: "municipio-tooltip"
-        });
-      }
-    }
-  });
+// Agregar ambas como capas superpuestas al control
+const overlayMaps = {
+  "Perímetro Boyacá": boyacaLayer,
+  "Municipios": municipiosLayer
+};
 
-  fetch('Municipios.geojson')
-    .then(response => response.json())
-    .then(data => municipiosLayer.addData(data))
-    .catch(err => console.error("Error al cargar Municipios.geojson:", err));
-
-  // Control de capas final
-  const overlayMaps = {
-    "Perímetro Boyacá": boyacaLayer,
-    "Municipios": municipiosLayer
-  };
-
-  L.control.layers(baseLayers, overlayMaps, { collapsed: true }).addTo(map);
+L.control.layers(baseLayers, overlayMaps, { collapsed: true }).addTo(map);
 
 </script>
 </body>
