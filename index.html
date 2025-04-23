@@ -279,30 +279,51 @@
   });
 
 
-    // Cargar capa Municipios
+// Cargar perímetro de Boyacá
+const boyacaLayer = L.geoJSON(null, {
+  style: {
+    color: '#000000',
+    weight: 2,
+    fillOpacity: 0
+  }
+}).addTo(map);
+
+fetch('Boyaca.geojson')
+  .then(response => response.json())
+  .then(data => boyacaLayer.addData(data))
+  .catch(err => console.error("Error al cargar Boyaca.geojson:", err));
+
+// Cargar Municipios
+const municipiosLayer = L.geoJSON(null, {
+  style: {
+    color: '#008000',
+    weight: 1.5,
+    fillOpacity: 0.1
+  },
+  onEachFeature: function (feature, layer) {
+    if (feature.properties && feature.properties.NOMBRE) {
+      layer.bindTooltip(feature.properties.NOMBRE, {
+        permanent: false,
+        direction: "center",
+        className: "municipio-tooltip"
+      });
+    }
+  }
+}).addTo(map);
+
 fetch('Municipios.geojson')
   .then(response => response.json())
-  .then(data => {
-    L.geoJSON(data, {
-      style: {
-        color: '#000000',
-        weight: 1.5,
-        fillOpacity: 0
-      },
-      onEachFeature: function (feature, layer) {
-        if (feature.properties && feature.properties.NOMBRE) {
-          layer.bindTooltip(feature.properties.NOMBRE, {
-            permanent: false,
-            direction: "center",
-            className: "municipio-tooltip"
-          });
-        }
-      }
-    }).addTo(map);
-  })
-    .catch(err => {
-      console.error("Error al cargar Boyacá.geojson:", err);
-    });
+  .then(data => municipiosLayer.addData(data))
+  .catch(err => console.error("Error al cargar Municipios.geojson:", err));
+
+// Agregar ambas como capas superpuestas al control
+const overlayMaps = {
+  "Perímetro Boyacá": boyacaLayer,
+  "Municipios": municipiosLayer
+};
+
+L.control.layers(baseLayers, overlayMaps, { collapsed: false }).addTo(map);
+
 </script>
 </body>
 </html>
