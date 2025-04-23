@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>CIEPS-DEBOY</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-draw/dist/leaflet.draw.css"/>
+  <style>
+    #map { height: 100vh; width: 100%; }
+    .button-container {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      z-index: 1000;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .formato {
+      padding: 10px;
+      background-color: #3388ff;
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-size: 14px;
+      border-radius: 4px;
+    }
+    button:hover, label:hover {
+      background-color: #0066cc;
+    }
+    input[type="file"] { display: none; }
+    .modal {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      padding: 20px;
+      border: 2px solid #3388ff;
+      border-radius: 10px;
+      z-index: 2000;
+      display: none;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+      width: 300px;
+    }
+    .modal select, .modal button {
+      margin-top: 10px;
+      padding: 10px;
+      width: 100%;
+    }
+    .modal .button-row {
+      display: flex;
+      gap: 10px;
+    }
+  </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div class="button-container">
+  <button class="formato" id="downloadGeoJSON">Descargar DATOS</button>
+  <label class="formato" for="loadGeoJSON">Cargar DATOS</label>
+  <button class="formato" id="clearMap">Limpiar Mapa</button>
+  <input type="file" id="loadGeoJSON" accept=".geojson,.json" />
+</div>
+
+<div class="modal" id="nameModal">
+  <label for="nameSelect">Selecciona un nombre:</label>
+  <select id="nameSelect">
+    <option value="">-- Seleccionar --</option>
+    <option value="ACUEDUCTO">ACUEDUCTO</option>
+    <option value="AEROPUERTO">AEROPUERTO</option>
+    <option value="ALCALDIA">ALCALDIA</option>
+    <!-- puedes dejar los demás como estaban -->
+  </select>
+  <div class="button-row">
+    <button id="confirmName">Aceptar</button>
+    <button id="cancelName" style="background-color: #ccc; color: black;">Cancelar</button>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+<script src="https://unpkg.com/leaflet-draw/dist/leaflet.draw.js"></script>
+<script src="https://unpkg.com/esri-leaflet"></script>
+
+<script>
+  const map = L.map('map').setView([5.613379, -73.132000], 8);
+
+  const openStreetMap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '© OpenStreetMap'
+  }).addTo(map);
+
+  const esriTopo = L.esri.basemapLayer('Topographic');
+  const esriImagery = L.esri.basemapLayer('Imagery');
+  const googleHybrid = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+    maxZoom: 20,
+    subdomains: ['mt0','mt1','mt2','mt3'],
+    attribution: '&copy; Google'
+  });
+
+  const baseLayers = {
+    "OpenStreetMap": openStreetMap,
+    "Esri Topográfico": esriTopo,
+    "Esri Satelital": esriImagery,
+    "Google Earth Híbrido": googleHybrid
+  };
+
+  L.control.layers(baseLayers, null, { collapsed: false }).addTo(map);
+  L.Control.geocoder().addTo(map);
+
+  const drawnItems = new L.FeatureGroup().addTo(map);
+  const geoJsonLayer = L.geoJSON(null, {
+    onEachFeature: function (feature, layer) {
+      if (feature.properties && feature.properties.name) {
+        layer.bindPopup(`<b>${feature.properties.name}</b><br>Fecha: ${feature.properties.timestamp || 'N/A'}`);
+        layer.bindTooltip(feature.properties.name, { permanent: true, direction: "top" });
+      }
+    }
+  }).addTo(map);
+
+  const drawControl = new L.Control.Draw({
+    draw: {
+      polyline: false,
+      circle: false,
+      rectangle: false,
+      circlemarker: false,
+      marker: true,
+      polygon: { allowIntersection: false, showArea: true }
+    },
+    edit: { featureGroup: drawnItems }
+  });
+  map.addControl(drawControl);
+
+  let features = [];
+  let tempLayer = null;
+
+  function actualizarCapaGeoJSON() {
+    geoJsonLayer.clearLayers();
+    geoJsonLayer.addData(features);
+  }
+
+  function mostrarModal(layer) {
+    tempLayer = layer;
+    document.getElementById("nameModal").style.display = "block";
+  }
+
+  document.getElementById("confirmName").addEventListener("click", () => {
+    const select = document.getElementById("nameSelect");
+    const name = select.value;
+    if (!name) return alert("Debes seleccionar un nombre.");
+    const timestamp = new Date().toISOString();
+    const geojson = tempLayer.toGeoJSON();
+    geojson.properties = { name, timestamp };
+    tempLayer.bindPopup(`<b>${name}</b><br>Fecha: ${timestamp}`);
+    tempLayer.bindTooltip(name, { permanent: true, direction: "top" });
+    if (geojson.geometry.type === "Point") {
+      tempLayer.addTo(map);
+    } else {
+      drawnItems.addLayer(tempLayer);
+    }
+    features.push(geojson);
+    actualizarCapaGeoJSON();
+    document.getElementById("nameModal").style.display = "none";
+    select.selectedIndex = 0;
+    tempLayer = null;
+  });
+
+  document.getElementById("cancelName").addEventListener("click", () => {
+    if (tempLayer && map.hasLayer(tempLayer)) map.removeLayer(tempLayer);
+    document.getElementById("nameModal").style.display = "none";
+    document.getElementById("nameSelect").selectedIndex = 0;
+    tempLayer = null;
+  });
+
+  map.on(L.Draw.Event.CREATED, function (e) {
+    mostrarModal(e.layer);
+  });
+
+  document.getElementById('downloadGeoJSON').addEventListener('click', () => {
+    if (features.length === 0) return alert("No hay elementos para guardar.");
+    const data = { type: "FeatureCollection", features: features };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/geo+json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = "GEOMETRIA.geojson";
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  document.getElementById('clearMap').addEventListener('click', () => {
+    features = [];
+    geoJsonLayer.clearLayers();
+    drawnItems.clearLayers();
+    alert("Mapa limpiado.");
+  });
+
+  document.getElementById('loadGeoJSON').addEventListener('change', function (e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function (event) {
+      try {
+        const json = JSON.parse(event.target.result);
+        if (json.features && Array.isArray(json.features)) {
+          features = features.concat(json.features);
+          geoJsonLayer.clearLayers();
+          drawnItems.clearLayers();
+          json.features.forEach(f => {
+            const layer = L.geoJSON(f).getLayers()[0];
+            if (!layer) return;
+            if (f.geometry.type === "Polygon" || f.geometry.type === "MultiPolygon") {
+              drawnItems.addLayer(layer);
+            } else {
+              layer.addTo(map);
+            }
+            if (f.properties && f.properties.name) {
+              layer.bindPopup(`<b>${f.properties.name}</b><br>Fecha: ${f.properties.timestamp || 'N/A'}`);
+              layer.bindTooltip(f.properties.name, { permanent: true, direction: "top" });
+            }
+          });
+          geoJsonLayer.addData(features);
+          alert("GeoJSON cargado correctamente.");
+        } else {
+          alert("Archivo GeoJSON inválido.");
+        }
+      } catch (err) {
+        alert("Error al leer el archivo: " + err.message);
+      }
+    };
+    reader.readAsText(file);
+  });
+
+  // 🔄 Cargar GeoJSON de Boyacá desde archivo externo
+  fetch('Boyaca.geojson')
+    .then(response => response.json())
+    .then(data => {
+      L.geoJSON(data, {
+        style: {
+          color: '#ff6600',
+          weight: 2,
+          fillOpacity: 0.1
+        }
+      }).addTo(map);
+    })
+    .catch(err => {
+      console.error("Error al cargar Boyacá.geojson:", err);
+    });
+
+</script>
+</body>
+</html>
