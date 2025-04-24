@@ -1,329 +1,237 @@
-<!-- Archivo: index.html -->
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-  <title>CIEPS-DEBOY</title>
-  <meta charset="utf-8" />
+  <meta charset="UTF-8" />
+  <title>Editor GeoJSON con Leaflet</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet-draw/dist/leaflet.draw.css"/>
+
   <style>
-    #map { height: 100vh; width: 100%; }
-    .button-container {
+    #map { height: 100vh; }
+    .controls {
       position: absolute;
       bottom: 10px;
       left: 10px;
       z-index: 1000;
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-    .formato {
-      padding: 10px;
-      background-color: #3388ff;
-      color: white;
-      border: none;
-      cursor: pointer;
-      font-size: 14px;
-      border-radius: 4px;
-    }
-    button:hover, label:hover {
-      background-color: #0066cc;
-    }
-    input[type="file"] { display: none; }
-    .modal {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
       background: white;
-      padding: 20px;
-      border: 2px solid #3388ff;
-      border-radius: 10px;
-      z-index: 2000;
-      display: none;
-      box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-      width: 300px;
-    }
-    .modal select, .modal button {
-      margin-top: 10px;
       padding: 10px;
-      width: 100%;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3);
+      font-family: sans-serif;
     }
-    .modal .button-row {
-      display: flex;
-      gap: 10px;
+    .controls select, .controls input, .controls button {
+      margin-top: 5px;
+      display: block;
+      width: 100%;
     }
   </style>
 </head>
 <body>
-
 <div id="map"></div>
-
-<div class="button-container">
-  <button class="formato" id="downloadGeoJSON">Descargar DATOS</button>
-  <label class="formato" for="loadGeoJSON">Cargar DATOS</label>
-  <button class="formato" id="clearMap">Limpiar Mapa</button>
-  <input type="file" id="loadGeoJSON" accept=".geojson,.json" />
-</div>
-
-<div class="modal" id="nameModal">
-  <label for="nameSelect">Selecciona un nombre:</label>
-  <select id="nameSelect">
-    <option value="">-- Seleccionar --</option>
-    <option value="ACUEDUCTO">ACUEDUCTO</option>
-    <option value="AEROPUERTO">AEROPUERTO</option>
-    <option value="ALCALDIA">ALCALDIA</option>
+<div class="controls">
+  <label for="nombre">Tipo/Nombre:</label>
+  <select id="nombre">
+    <option value="Punto de Control">Punto de Control</option>
+    <option value="Zona de Riesgo">Zona de Riesgo</option>
+    <option value="Ruta">Ruta</option>
+    <option value="Otro">Otro</option>
   </select>
-  <div class="button-row">
-    <button id="confirmName">Aceptar</button>
-    <button id="cancelName" style="background-color: #ccc; color: black;">Cancelar</button>
-  </div>
+  <input type="file" id="upload" accept=".geojson" />
+  <button onclick="downloadGeoJSON()">Exportar GeoJSON</button>
 </div>
 
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
 <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
-<script src="https://unpkg.com/leaflet-draw/dist/leaflet.draw.js"></script>
-<script src="https://unpkg.com/esri-leaflet"></script>
 
 <script>
-  const map = L.map('map').setView([5.613379, -73.132000], 8);
+  const map = L.map('map').setView([5.5, -73.4], 8);
 
-  const openStreetMap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    attribution: '© OpenStreetMap'
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors'
   }).addTo(map);
 
-  const esriTopo = L.esri.basemapLayer('Topographic');
-  const esriImagery = L.esri.basemapLayer('Imagery');
+  // Geocoder agregado antes del control de capas
+  L.Control.geocoder({
+    defaultMarkGeocode: false
+  })
+  .on('markgeocode', function(e) {
+    const bbox = e.geocode.bbox;
+    const poly = L.polygon([
+      bbox.getSouthEast(),
+      bbox.getNorthEast(),
+      bbox.getNorthWest(),
+      bbox.getSouthWest()
+    ]);
+    map.fitBounds(poly.getBounds());
+  })
+  .addTo(map);
+
+  const drawnItems = new L.FeatureGroup();
+  const labelLayer = new L.LayerGroup();
+
+
+const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap contributors'
+}).addTo(map);
+
+const esri = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/' +
+  'World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+  attribution: 'Tiles &copy; Esri'
+});
+
+const cartoLight = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; CartoDB'
+});
+
+const stamenToner = L.tileLayer('https://stamen-tiles.a.ssl.fastly.net/toner/{z}/{x}/{y}.png', {
+  attribution: 'Map tiles by Stamen Design'
+});
+
+
   const googleHybrid = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
     maxZoom: 20,
     subdomains: ['mt0','mt1','mt2','mt3'],
     attribution: '&copy; Google'
   });
 
-  const baseLayers = {
-    "OpenStreetMap": openStreetMap,
-    "Esri Topográfico": esriTopo,
-    "Esri Satelital": esriImagery,
-    "Google Earth Híbrido": googleHybrid
+
+const baseMaps = {
+  "OpenStreetMap": osm,
+  "Esri Satélite": esri,
+  "CartoDB Light": cartoLight,
+  "Stamen Toner": stamenToner,
+  "Google Earth Híbrido": googleHybrid
+};
+
+
+  const overlayMaps = {
+    "Elementos Dibujados": drawnItems,
+    "Etiquetas": labelLayer
   };
 
+  L.control.layers(baseMaps, overlayMaps).addTo(map);
+  map.addLayer(drawnItems);
+  map.addLayer(labelLayer);
 
-  L.Control.geocoder().addTo(map);
-
-  const drawnItems = new L.FeatureGroup().addTo(map);
-  const geoJsonLayer = L.geoJSON(null, {
-    onEachFeature: function (feature, layer) {
-      if (feature.properties && feature.properties.name) {
-        layer.bindPopup(`<b>${feature.properties.name}</b><br>Fecha: ${feature.properties.timestamp || 'N/A'}`);
-        layer.bindTooltip(feature.properties.name, { permanent: true, direction: "top" });
-      }
-    }
-  }).addTo(map);
+  const layerTooltips = new Map();
 
   const drawControl = new L.Control.Draw({
-    draw: {
-      polyline: false,
-      circle: false,
-      rectangle: false,
-      circlemarker: false,
-      marker: true,
-      polygon: { allowIntersection: false, showArea: true }
+    edit: {
+      featureGroup: drawnItems
     },
-    edit: { featureGroup: drawnItems }
+    draw: {
+      polygon: true,
+      polyline: true,
+      rectangle: false,
+      circle: false,
+      circlemarker: false,
+      marker: true
+    }
   });
   map.addControl(drawControl);
 
-  let features = [];
-  let tempLayer = null;
+  function createTooltip(nombre, layer) {
+    const tooltip = L.tooltip({
+      permanent: true,
+      direction: 'top',
+      offset: [0, -10],
+      className: 'label-tooltip'
+    }).setContent(nombre).setLatLng(layer.getBounds ? layer.getBounds().getCenter() : layer.getLatLng());
 
-  function actualizarCapaGeoJSON() {
-    geoJsonLayer.clearLayers();
-    geoJsonLayer.addData(features);
+    labelLayer.addLayer(tooltip);
+    layerTooltips.set(layer._leaflet_id, tooltip);
   }
 
-  function mostrarModal(layer) {
-    tempLayer = layer;
-
-    if (tempLayer instanceof L.Marker) {
-      tempLayer.options.draggable = true;
-      tempLayer.on('dragend', function () {
-        const updated = tempLayer.toGeoJSON();
-        const index = features.findIndex(f => f.properties.name === updated.properties.name);
-        if (index !== -1) {
-          features[index].geometry = updated.geometry;
-          actualizarCapaGeoJSON();
-        }
-      });
+  function updateTooltip(layer) {
+    const tooltip = layerTooltips.get(layer._leaflet_id);
+    if (tooltip) {
+      tooltip.setLatLng(layer.getBounds ? layer.getBounds().getCenter() : layer.getLatLng());
+      tooltip.setContent(layer.feature?.properties?.nombre || "Sin nombre");
     }
-
-    document.getElementById("nameModal").style.display = "block";
   }
-
-  document.getElementById("confirmName").addEventListener("click", () => {
-    const select = document.getElementById("nameSelect");
-    const name = select.value;
-    if (!name) return alert("Debes seleccionar un nombre.");
-    const timestamp = new Date().toISOString();
-    const geometry = tempLayer.toGeoJSON().geometry;
-
-    tempLayer.feature = {
-      type: "Feature",
-      properties: { name, timestamp },
-      geometry: geometry
-    };
-
-    features.push(tempLayer.feature);
-    tempLayer.bindPopup(`<b>${name}</b><br>Fecha: ${timestamp}`);
-    tempLayer.bindTooltip(name, { permanent: true, direction: "top" });
-    drawnItems.addLayer(tempLayer);
-    actualizarCapaGeoJSON();
-    document.getElementById("nameModal").style.display = "none";
-    select.selectedIndex = 0;
-    tempLayer = null;
-  });
-
-  document.getElementById("cancelName").addEventListener("click", () => {
-    if (tempLayer && map.hasLayer(tempLayer)) map.removeLayer(tempLayer);
-    document.getElementById("nameModal").style.display = "none";
-    document.getElementById("nameSelect").selectedIndex = 0;
-    tempLayer = null;
-  });
 
   map.on(L.Draw.Event.CREATED, function (e) {
-    mostrarModal(e.layer);
+    const layer = e.layer;
+    const nombre = document.getElementById('nombre').value;
+    layer.feature = { type: "Feature", properties: { nombre: nombre } };
+    layer.bindPopup("Nombre: " + nombre);
+    drawnItems.addLayer(layer);
+    createTooltip(nombre, layer);
   });
 
   map.on(L.Draw.Event.EDITED, function (e) {
-    const layers = e.layers;
-    layers.eachLayer(function (layer) {
-      const updated = layer.toGeoJSON();
-      const index = features.findIndex(f => f.properties.name === layer.feature?.properties?.name);
-      if (index !== -1) {
-        features[index] = updated;
+    e.layers.eachLayer(function(layer) {
+      const oldName = layer.feature?.properties?.nombre || "Sin nombre";
+      const newName = prompt("Editar nombre:", oldName);
+      if (newName !== null) {
+        layer.feature.properties.nombre = newName;
+        layer.bindPopup("Nombre: " + newName);
+        updateTooltip(layer);
       }
     });
-    actualizarCapaGeoJSON();
   });
 
-  document.getElementById('downloadGeoJSON').addEventListener('click', () => {
-    if (features.length === 0) return alert("No hay elementos para guardar.");
-    const data = { type: "FeatureCollection", features: features };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/geo+json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = "GEOMETRIA.geojson";
-    a.click();
-    URL.revokeObjectURL(url);
-  });
-
-  document.getElementById('clearMap').addEventListener('click', () => {
-    features = [];
-    geoJsonLayer.clearLayers();
-    drawnItems.clearLayers();
-    alert("Mapa limpiado.");
-  });
-
-  document.getElementById('loadGeoJSON').addEventListener('change', function (e) {
+  document.getElementById('upload').addEventListener('change', function(e) {
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = function (event) {
-      try {
-        const json = JSON.parse(event.target.result);
-        if (json.features && Array.isArray(json.features)) {
-          features = features.concat(json.features);
-          geoJsonLayer.clearLayers();
-          drawnItems.clearLayers();
-          json.features.forEach(f => {
-            const layer = L.geoJSON(f, {
-              onEachFeature: function (feature, layer) {
-                layer.feature = feature;
-              }
-            }).getLayers()[0];
-
-            if (!layer) return;
-
-            if (layer instanceof L.Marker) {
-              layer.options.draggable = true;
-              layer.on('dragend', function () {
-                const updated = layer.toGeoJSON();
-                const index = features.findIndex(ff => ff.properties.name === updated.properties.name);
-                if (index !== -1) {
-                  features[index].geometry = updated.geometry;
-                  actualizarCapaGeoJSON();
-                }
-              });
-            }
-
-            if (f.properties && f.properties.name) {
-              layer.bindPopup(`<b>${f.properties.name}</b><br>Fecha: ${f.properties.timestamp || 'N/A'}`);
-              layer.bindTooltip(f.properties.name, { permanent: true, direction: "top" });
-            }
-
-            drawnItems.addLayer(layer);
-          });
-          geoJsonLayer.addData(features);
-          alert("GeoJSON cargado correctamente.");
-        } else {
-          alert("Archivo GeoJSON inválido.");
+    reader.onload = function(e) {
+      const geojson = JSON.parse(e.target.result);
+      L.geoJSON(geojson, {
+        onEachFeature: function (feature, layer) {
+          const nombre = feature.properties?.nombre || "Sin nombre";
+          layer.bindPopup("Nombre: " + nombre);
+          drawnItems.addLayer(layer);
+          createTooltip(nombre, layer);
         }
-      } catch (err) {
-        alert("Error al leer el archivo: " + err.message);
-      }
+      });
     };
     reader.readAsText(file);
   });
 
-
-// Cargar perímetro de Boyacá
-const boyacaLayer = L.geoJSON(null, {
-  style: {
-    color: '#000000',
-    weight: 2,
-    fillOpacity: 0
+  function downloadGeoJSON() {
+    const data = drawnItems.toGeoJSON();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "mapa.geojson";
+    a.click();
+    URL.revokeObjectURL(url);
   }
-}).addTo(map);
+  
+  
+  
+  
 
-fetch('Boyaca.geojson')
-  .then(response => response.json())
-  .then(data => boyacaLayer.addData(data))
-  .catch(err => console.error("Error al cargar Boyaca.geojson:", err));
+  // Cargar GeoJSON fijo (por ejemplo: boyaca.geojson)
+  fetch('Boyaca.geojson')
+    .then(response => response.json())
+    .then(data => {
+      const capaBoyaca = L.geoJSON(data, {
+        style: {
+          color: '#3388ff',
+          weight: 2,
+          fillOpacity: 0.1
+        }
+      }).addTo(map);
 
-// Cargar Municipios
-const municipiosLayer = L.geoJSON(null, {
-  style: {
-    color: '#000000',
-    weight: 1.5,
-    fillOpacity: 0
-  },
-  onEachFeature: function (feature, layer) {
-    if (feature.properties && feature.properties.NOMBRE) {
-      layer.bindTooltip(feature.properties.NOMBRE, {
-        permanent: false,
-        direction: "center",
-        className: "municipio-tooltip"
-      });
-    }
-  }
-}).addTo(map);
+      // Opcional: ajusta el mapa a los límites de la capa
+      map.fitBounds(capaBoyaca.getBounds());
 
-fetch('Municipios.geojson')
-  .then(response => response.json())
-  .then(data => municipiosLayer.addData(data))
-  .catch(err => console.error("Error al cargar Municipios.geojson:", err));
+      // También podrías agregarlo como capa opcional al control
+      overlayMaps["Boyacá"] = capaBoyaca;
+      map.removeControl(map._layersControl); // Elimina el control actual
+      L.control.layers(baseMaps, overlayMaps).addTo(map); // Y lo vuelve a agregar con la nueva capa
+    });
 
-// Agregar ambas como capas superpuestas al control
-const overlayMaps = {
-  "Perímetro Boyacá": boyacaLayer,
-  "Municipios": municipiosLayer
-};
-
-L.control.layers(baseLayers, overlayMaps, { collapsed: true }).addTo(map);
-
+  
+  
+  
+  
 </script>
 </body>
 </html>
