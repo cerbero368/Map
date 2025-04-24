@@ -84,6 +84,21 @@
   const labelLayer = new L.LayerGroup();
   const select = document.getElementById('nombre');
 
+
+L.Control.geocoder({
+    defaultMarkGeocode: false
+  }).on('markgeocode', function(e) {
+    const bbox = e.geocode.bbox;
+    const poly = L.polygon([
+      bbox.getSouthEast(),
+      bbox.getNorthEast(),
+      bbox.getNorthWest(),
+      bbox.getSouthWest()
+    ]);
+    map.fitBounds(poly.getBounds());
+  }).addTo(map);
+
+	
   const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors'
   }).addTo(map);
@@ -124,18 +139,7 @@
   map.addLayer(drawnItems);
   map.addLayer(labelLayer);
 
-  L.Control.geocoder({
-    defaultMarkGeocode: false
-  }).on('markgeocode', function(e) {
-    const bbox = e.geocode.bbox;
-    const poly = L.polygon([
-      bbox.getSouthEast(),
-      bbox.getNorthEast(),
-      bbox.getNorthWest(),
-      bbox.getSouthWest()
-    ]);
-    map.fitBounds(poly.getBounds());
-  }).addTo(map);
+  
 
   const layerTooltips = new Map();
 
