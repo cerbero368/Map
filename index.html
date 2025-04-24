@@ -207,15 +207,16 @@ const baseMaps = {
   
   
 
+
   // Cargar GeoJSON fijo (por ejemplo: boyaca.geojson)
-  fetch('Boyaca.geojson')
+  fetch('Municipios.geojson')
     .then(response => response.json())
     .then(data => {
       const capaBoyaca = L.geoJSON(data, {
         style: {
-          color: '#3388ff',
+          color: '#000000',
           weight: 2,
-          fillOpacity: 0.1
+          fillOpacity: 0
         }
       }).addTo(map);
 
@@ -227,7 +228,6 @@ const baseMaps = {
       map.removeControl(map._layersControl); // Elimina el control actual
       L.control.layers(baseMaps, overlayMaps).addTo(map); // Y lo vuelve a agregar con la nueva capa
     });
-
   
   
   
