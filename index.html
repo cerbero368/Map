@@ -25,7 +25,6 @@
       display: block;
       width: 100%;
     }
-    /* Modal */
     #modal {
       display: none;
       position: fixed;
@@ -52,7 +51,6 @@
 <body>
 <div id="map"></div>
 
-<!-- Controles -->
 <div class="controls">
   <label for="nombre">Tipo/Nombre:</label>
   <select id="nombre">
@@ -65,7 +63,6 @@
   <button onclick="downloadGeoJSON()">Exportar GeoJSON</button>
 </div>
 
-<!-- Modal para selección -->
 <div id="modal">
   <div id="modal-content">
     <label for="modal-select">Selecciona un nombre:</label>
@@ -84,8 +81,8 @@
   const labelLayer = new L.LayerGroup();
   const select = document.getElementById('nombre');
 
-
-L.Control.geocoder({
+  // Geocoder primero
+  const geocoder = L.Control.geocoder({
     defaultMarkGeocode: false
   }).on('markgeocode', function(e) {
     const bbox = e.geocode.bbox;
@@ -98,13 +95,11 @@ L.Control.geocoder({
     map.fitBounds(poly.getBounds());
   }).addTo(map);
 
-	
   const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors'
   }).addTo(map);
 
-  const esri = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/' +
-    'World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+  const esri = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
     attribution: 'Tiles &copy; Esri'
   });
 
@@ -135,11 +130,9 @@ L.Control.geocoder({
     "Etiquetas": labelLayer
   };
 
-  L.control.layers(baseMaps, overlayMaps).addTo(map);
+  const layerControl = L.control.layers(baseMaps, overlayMaps).addTo(map);
   map.addLayer(drawnItems);
   map.addLayer(labelLayer);
-
-  
 
   const layerTooltips = new Map();
 
@@ -240,21 +233,20 @@ L.Control.geocoder({
     reader.readAsText(file);
   });
 
-function downloadGeoJSON() {
-  const data = drawnItems.toGeoJSON();
-  if (!data.features.length) {
-    alert("No hay elementos para exportar.");
-    return;
+  function downloadGeoJSON() {
+    const data = drawnItems.toGeoJSON();
+    if (!data.features.length) {
+      alert("No hay elementos para exportar.");
+      return;
+    }
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "mapa.geojson";
+    a.click();
+    URL.revokeObjectURL(url);
   }
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "mapa.geojson";
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
 
   // Cargar GeoJSON de Boyacá
   fetch('Municipios.geojson')
@@ -273,19 +265,16 @@ function downloadGeoJSON() {
       map.removeControl(map._layersControl);
       L.control.layers(baseMaps, overlayMaps).addTo(map);
     });
-	
-map.on(L.Draw.Event.DELETED, function (e) {
-  e.layers.eachLayer(function (layer) {
-    const tooltip = layerTooltips.get(layer._leaflet_id);
-    if (tooltip) {
-      labelLayer.removeLayer(tooltip);
-      layerTooltips.delete(layer._leaflet_id);
-    }
+
+  map.on(L.Draw.Event.DELETED, function (e) {
+    e.layers.eachLayer(function (layer) {
+      const tooltip = layerTooltips.get(layer._leaflet_id);
+      if (tooltip) {
+        labelLayer.removeLayer(tooltip);
+        layerTooltips.delete(layer._leaflet_id);
+      }
+    });
   });
-});
-	
-	
-	
 </script>
 </body>
 </html>
