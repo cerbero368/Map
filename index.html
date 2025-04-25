@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-measure/dist/leaflet-measure.css" />
   <style>
     #map { height: 100vh; }
     .controls {
@@ -46,9 +47,27 @@
       margin-top: 10px;
       width: 100%;
     }
-	
+    .streetview-btn {
+      display: inline-block;
+      padding: 6px 12px;
+      margin-top: 5px;
+      background-color: #f1c40f;
+      color: black !important;
+      border: none;
+      border-radius: 6px;
+      text-align: center;
+      text-decoration: none !important;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    .streetview-btn:hover {
+      background-color: #d4ac0d;
+    }
+    a.streetview-link {
+      text-decoration: none;
+    }
   </style>
- <link rel="stylesheet" href="leaflet-measure.css">
 </head>
 <body>
 <div id="map"></div>
@@ -77,7 +96,6 @@
 <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
 <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
 <script src="https://unpkg.com/leaflet-measure/dist/leaflet-measure.js"></script>
-<link rel="stylesheet" href="https://unpkg.com/leaflet-measure/dist/leaflet-measure.css" />
 <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
 
 <script>
@@ -86,48 +104,36 @@
   const labelLayer = new L.LayerGroup();
   const select = document.getElementById('nombre');
 
-  // Geocoder primero
-  const geocoder = L.Control.geocoder({
-    defaultMarkGeocode: false
-  }).on('markgeocode', function(e) {
-    const bbox = e.geocode.bbox;
-    const poly = L.polygon([
-      bbox.getSouthEast(),
-      bbox.getNorthEast(),
-      bbox.getNorthWest(),
-      bbox.getSouthWest()
-    ]);
-    map.fitBounds(poly.getBounds());
-  }).addTo(map);
-
-  const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap contributors'
-  }).addTo(map);
-
-  const esri = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-    attribution: 'Tiles &copy; Esri'
-  });
-
-  const cartoLight = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; CartoDB'
-  });
-
-  const stamenToner = L.tileLayer('https://stamen-tiles.a.ssl.fastly.net/toner/{z}/{x}/{y}.png', {
-    attribution: 'Map tiles by Stamen Design'
-  });
-
-  const googleHybrid = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
-    maxZoom: 20,
-    subdomains: ['mt0','mt1','mt2','mt3'],
-    attribution: '&copy; Google'
-  });
+  const geocoder = L.Control.geocoder({ defaultMarkGeocode: false })
+    .on('markgeocode', function(e) {
+      const bbox = e.geocode.bbox;
+      const poly = L.polygon([
+        bbox.getSouthEast(),
+        bbox.getNorthEast(),
+        bbox.getNorthWest(),
+        bbox.getSouthWest()
+      ]);
+      map.fitBounds(poly.getBounds());
+    }).addTo(map);
 
   const baseMaps = {
-    "OpenStreetMap": osm,
-    "Esri Satélite": esri,
-    "CartoDB Light": cartoLight,
-    "Stamen Toner": stamenToner,
-    "Google Earth Híbrido": googleHybrid
+    "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map),
+    "Esri Satélite": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      attribution: 'Tiles &copy; Esri'
+    }),
+    "CartoDB Light": L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; CartoDB'
+    }),
+    "Stamen Toner": L.tileLayer('https://stamen-tiles.a.ssl.fastly.net/toner/{z}/{x}/{y}.png', {
+      attribution: 'Map tiles by Stamen Design'
+    }),
+    "Google Earth Híbrido": L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+      maxZoom: 20,
+      subdomains: ['mt0','mt1','mt2','mt3'],
+      attribution: '&copy; Google'
+    })
   };
 
   const overlayMaps = {
@@ -135,12 +141,11 @@
     "Etiquetas": labelLayer
   };
 
-  const layerControl = L.control.layers(baseMaps, overlayMaps).addTo(map);
+  L.control.layers(baseMaps, overlayMaps).addTo(map);
   map.addLayer(drawnItems);
   map.addLayer(labelLayer);
 
-
-L.control.measure({
+  L.control.measure({
     primaryLengthUnit: 'meters',
     secondaryLengthUnit: 'kilometers',
     primaryAreaUnit: 'sqmeters',
@@ -148,8 +153,6 @@ L.control.measure({
     activeColor: '#db4a29',
     completedColor: '#9b2d14'
   }).addTo(map);
-
-
 
   const layerTooltips = new Map();
 
@@ -167,12 +170,9 @@ L.control.measure({
   map.addControl(drawControl);
 
   function createTooltip(nombre, layer) {
-    const tooltip = L.tooltip({
-      permanent: true,
-      direction: 'top',
-      offset: [0, -10],
-      className: 'label-tooltip'
-    }).setContent(nombre).setLatLng(layer.getBounds ? layer.getBounds().getCenter() : layer.getLatLng());
+    const tooltip = L.tooltip({ permanent: true, direction: 'top', offset: [0, -10], className: 'label-tooltip' })
+      .setContent(nombre)
+      .setLatLng(layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter());
     labelLayer.addLayer(tooltip);
     layerTooltips.set(layer._leaflet_id, tooltip);
   }
@@ -180,7 +180,7 @@ L.control.measure({
   function updateTooltip(layer) {
     const tooltip = layerTooltips.get(layer._leaflet_id);
     if (tooltip) {
-      tooltip.setLatLng(layer.getBounds ? layer.getBounds().getCenter() : layer.getLatLng());
+      tooltip.setLatLng(layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter());
       tooltip.setContent(layer.feature?.properties?.nombre || "Sin nombre");
     }
   }
@@ -204,31 +204,38 @@ L.control.measure({
     });
   }
 
-map.on(L.Draw.Event.CREATED, async function (e) {
-  const layer = e.layer;
-
-  // Solo valida polígonos
-  if (layer instanceof L.Polygon) {
-    const geojson = layer.toGeoJSON();
-    const isValid = turf.kinks(geojson).features.length === 0;
-    if (!isValid) {
-      alert("El polígono se cruza a sí mismo. Dibuja una forma válida.");
-      return; // No lo agregues al mapa
+  map.on(L.Draw.Event.CREATED, async function (e) {
+    const layer = e.layer;
+    if (layer instanceof L.Polygon) {
+      const geojson = layer.toGeoJSON();
+      if (turf.kinks(geojson).features.length > 0) {
+        alert("El polígono se cruza a sí mismo. Dibuja una forma válida.");
+        return;
+      }
     }
-  }
 
-  let nombre = select.value;
-  if (!confirm(`¿Deseas usar el nombre "${nombre}" para este elemento?`)) {
-    const opciones = Array.from(select.options).map(opt => opt.value);
-    nombre = await mostrarModal(opciones);
-    select.value = nombre;
-  }
-  layer.feature = { type: "Feature", properties: { nombre } };
-  layer.bindPopup("Nombre: " + nombre);
-  drawnItems.addLayer(layer);
-  createTooltip(nombre, layer);
-});
+    let nombre = select.value;
+    if (!confirm(`¿Deseas usar el nombre "${nombre}" para este elemento?`)) {
+      const opciones = Array.from(select.options).map(opt => opt.value);
+      nombre = await mostrarModal(opciones);
+      select.value = nombre;
+    }
+    layer.feature = { type: "Feature", properties: { nombre } };
 
+    const center = layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter();
+    const streetViewUrl = `https://www.google.com/maps?q=&layer=c&cbll=${center.lat},${center.lng}`;
+    let popupContent = `<strong>Nombre:</strong> ${nombre}<br/>`;
+    if (layer instanceof L.Marker) {
+      popupContent += `
+        <a href="${streetViewUrl}" target="_blank" class="streetview-link">
+          <div class="streetview-btn">Abrir Street View</div>
+        </a>`;
+    }
+
+    layer.bindPopup(popupContent);
+    drawnItems.addLayer(layer);
+    createTooltip(nombre, layer);
+  });
 
   map.on(L.Draw.Event.EDITED, async function (e) {
     let selectedName = select.value;
@@ -239,7 +246,16 @@ map.on(L.Draw.Event.CREATED, async function (e) {
     }
     e.layers.eachLayer(function(layer) {
       layer.feature.properties.nombre = selectedName;
-      layer.bindPopup("Nombre: " + selectedName);
+      const center = layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter();
+      const streetViewUrl = `https://www.google.com/maps?q=&layer=c&cbll=${center.lat},${center.lng}`;
+      let popupContent = `<strong>Nombre:</strong> ${selectedName}<br/>`;
+      if (layer instanceof L.Marker) {
+        popupContent += `
+          <a href="${streetViewUrl}" target="_blank" class="streetview-link">
+            <div class="streetview-btn">Abrir Street View</div>
+          </a>`;
+      }
+      layer.bindPopup(popupContent);
       updateTooltip(layer);
     });
   });
@@ -253,7 +269,16 @@ map.on(L.Draw.Event.CREATED, async function (e) {
       L.geoJSON(geojson, {
         onEachFeature: function (feature, layer) {
           const nombre = feature.properties?.nombre || "Sin nombre";
-          layer.bindPopup("Nombre: " + nombre);
+          const center = layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter();
+          const streetViewUrl = `https://www.google.com/maps?q=&layer=c&cbll=${center.lat},${center.lng}`;
+          let popupContent = `<strong>Nombre:</strong> ${nombre}<br/>`;
+          if (layer instanceof L.Marker) {
+            popupContent += `
+              <a href="${streetViewUrl}" target="_blank" class="streetview-link">
+                <div class="streetview-btn">Abrir Street View</div>
+              </a>`;
+          }
+          layer.bindPopup(popupContent);
           drawnItems.addLayer(layer);
           createTooltip(nombre, layer);
         }
@@ -277,7 +302,6 @@ map.on(L.Draw.Event.CREATED, async function (e) {
     URL.revokeObjectURL(url);
   }
 
-  // Cargar GeoJSON de Boyacá
   fetch('Municipios.geojson')
     .then(response => response.json())
     .then(data => {
