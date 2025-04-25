@@ -78,6 +78,7 @@
 <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
 <script src="https://unpkg.com/leaflet-measure/dist/leaflet-measure.js"></script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet-measure/dist/leaflet-measure.css" />
+<script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
 
 <script>
   const map = L.map('map').setView([5.5, -73.4], 8);
@@ -203,19 +204,31 @@ L.control.measure({
     });
   }
 
-  map.on(L.Draw.Event.CREATED, async function (e) {
-    const layer = e.layer;
-    let nombre = select.value;
-    if (!confirm(`¿Deseas usar el nombre "${nombre}" para este elemento?`)) {
-      const opciones = Array.from(select.options).map(opt => opt.value);
-      nombre = await mostrarModal(opciones);
-      select.value = nombre;
+map.on(L.Draw.Event.CREATED, async function (e) {
+  const layer = e.layer;
+
+  // Solo valida polígonos
+  if (layer instanceof L.Polygon) {
+    const geojson = layer.toGeoJSON();
+    const isValid = turf.kinks(geojson).features.length === 0;
+    if (!isValid) {
+      alert("El polígono se cruza a sí mismo. Dibuja una forma válida.");
+      return; // No lo agregues al mapa
     }
-    layer.feature = { type: "Feature", properties: { nombre } };
-    layer.bindPopup("Nombre: " + nombre);
-    drawnItems.addLayer(layer);
-    createTooltip(nombre, layer);
-  });
+  }
+
+  let nombre = select.value;
+  if (!confirm(`¿Deseas usar el nombre "${nombre}" para este elemento?`)) {
+    const opciones = Array.from(select.options).map(opt => opt.value);
+    nombre = await mostrarModal(opciones);
+    select.value = nombre;
+  }
+  layer.feature = { type: "Feature", properties: { nombre } };
+  layer.bindPopup("Nombre: " + nombre);
+  drawnItems.addLayer(layer);
+  createTooltip(nombre, layer);
+});
+
 
   map.on(L.Draw.Event.EDITED, async function (e) {
     let selectedName = select.value;
