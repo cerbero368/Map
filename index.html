@@ -46,7 +46,9 @@
       margin-top: 10px;
       width: 100%;
     }
+	
   </style>
+ <link rel="stylesheet" href="leaflet-measure.css">
 </head>
 <body>
 <div id="map"></div>
@@ -74,6 +76,8 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
 <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+<script src="https://unpkg.com/leaflet-measure/dist/leaflet-measure.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet-measure/dist/leaflet-measure.css" />
 
 <script>
   const map = L.map('map').setView([5.5, -73.4], 8);
@@ -133,6 +137,18 @@
   const layerControl = L.control.layers(baseMaps, overlayMaps).addTo(map);
   map.addLayer(drawnItems);
   map.addLayer(labelLayer);
+
+
+L.control.measure({
+    primaryLengthUnit: 'meters',
+    secondaryLengthUnit: 'kilometers',
+    primaryAreaUnit: 'sqmeters',
+    secondaryAreaUnit: 'hectares',
+    activeColor: '#db4a29',
+    completedColor: '#9b2d14'
+  }).addTo(map);
+
+
 
   const layerTooltips = new Map();
 
