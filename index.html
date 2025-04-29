@@ -318,7 +318,7 @@ function updateTooltip(layer) {
     .then(res => res.json())
     .then(data => {
       const capaBoyaca = L.geoJSON(data, {
-        style: { color: '#3388ff', weight: 2, fillOpacity: 0 }
+        style: { color: '#000000', weight: 2, fillOpacity: 0 }
       });
       capaBoyaca.addTo(map);
       overlayMaps["Municipios"] = capaBoyaca;
