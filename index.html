@@ -64,100 +64,12 @@
     .streetview-btn:hover {
       background-color: #d4ac0d;
     }
-    a.streetview-link {
-      text-decoration: none;
-    }
   </style>
 </head>
 <body>
 <div id="map"></div>
 
 <div class="controls">
-  <label for="nombre">Tipo/Nombre:</label>
-<select id="nombre">
-  <option>ACUEDUCTO</option>
-  <option>AEROPUERTO</option>
-  <option>ALCALDIA</option>
-  <option>ALCANTARILLA</option>
-  <option>ANCIANATO</option>
-  <option>ANTENA</option>
-  <option>BOMBREROS</option>
-  <option>CAMARA DE COMERCIO</option>
-  <option>CANCHA</option>
-  <option>CANTERA</option>
-  <option>CAÑO</option>
-  <option>CARCEL</option>
-  <option>CASA DEL ALCALDE</option>
-  <option>CEMENTERIO</option>
-  <option>CERRO</option>
-  <option>COLISEO</option>
-  <option>COMISARIA DE FAMILIA</option>
-  <option>CONTRALORIA</option>
-  <option>CRUCE</option>
-  <option>CRUZ ROJA</option>
-  <option>DEFENSA CIVIL</option>
-  <option>DEFENSORIA DEL PUEBLO</option>
-  <option>DIAN</option>
-  <option>EMPRESA MUNICIPAL</option>
-  <option>EMPRESA PRIVADA</option>
-  <option>ENTIDAD ECLESIASTICA</option>
-  <option>ENTIDAD FINACIERA</option>
-  <option>ENTIDADES DE SALUD</option>
-  <option>ENTIDADES EDUCATIVA</option>
-  <option>ESTABLECIMIENTO PÚBLICO</option>
-  <option>ESTACIÓN DE POLICIA</option>
-  <option>ESTACIÓN DE FERROCARRIL</option>
-  <option>ESTACIÓN DE GASOLINA</option>
-  <option>ESTADIO</option>
-  <option>FISCALIA</option>
-  <option>GASODUCTO</option>
-  <option>GOBERNACION</option>
-  <option>HELIPUERTO</option>
-  <option>ICBF</option>
-  <option>INSPECCION DE POLICIA</option>
-  <option>JUZGADO</option>
-  <option>LAGUNA</option>
-  <option>MATADERO</option>
-  <option>MINISTERIO</option>
-  <option>MUELLE</option>
-  <option>NOTARIA</option>
-  <option>OLEODUCTO</option>
-  <option>PARQUE</option>
-  <option>PARQUEADERO</option>
-  <option>PEAJE</option>
-  <option>PERSONERIA</option>
-  <option>PISTA DE ATERRIZAJE</option>
-  <option>PLAZA DE MERCADO</option>
-  <option>PLAZA DE TOROS</option>
-  <option>POLIDEPORTIVO</option>
-  <option>POSIBLE CONCENTRACIÓN SUBVERSIVA</option>
-  <option>POSIBLE UBICACIÓN DE CILINDROS</option>
-  <option>POSIBLE UBICACIÓN M-60</option>
-  <option>POTRERO</option>
-  <option>POZO</option>
-  <option>PROCURADURIA</option>
-  <option>PUENTE</option>
-  <option>PUNTOS EMBOSCADA</option>
-  <option>QUEBRADA</option>
-  <option>REGISTRADURIA</option>
-  <option>RESGUADO INDÍGENA</option>
-  <option>RIO</option>
-  <option>RUTA DE DESPLIEQUE</option>
-  <option>SALON COMUNAL</option>
-  <option>SUBESTACIÓN ELÉCTRICA</option>
-  <option>SUBESTACIÓN DE POLICIA</option>
-  <option>TELECOMUNICACIONES</option>
-  <option>TERMINAL DE TRANSPORTE</option>
-  <option>TORRE</option>
-  <option>TRAMO CRÍTICO</option>
-  <option>TRAPICHE</option>
-  <option>TÚNEL</option>
-  <option>VÍA DE ACCESO</option>
-  <option>VIADUCTO</option>
-  <option>ZONA BOSCOSAZONA</option>
-  <option>ZONA INSDUSTRIAL</option>
-  <option>ZONAS DE DESEMBARQUE</option>
-</select>
   <input type="file" id="upload" accept=".geojson" />
   <button onclick="downloadGeoJSON()">Exportar GeoJSON</button>
 </div>
@@ -180,18 +92,11 @@
   const map = L.map('map').setView([5.5, -73.4], 8);
   const drawnItems = new L.FeatureGroup();
   const labelLayer = new L.LayerGroup();
-  const select = document.getElementById('nombre');
-
+  const select = document.createElement('select');
+  
   const geocoder = L.Control.geocoder({ defaultMarkGeocode: false })
     .on('markgeocode', function(e) {
-      const bbox = e.geocode.bbox;
-      const poly = L.polygon([
-        bbox.getSouthEast(),
-        bbox.getNorthEast(),
-        bbox.getNorthWest(),
-        bbox.getSouthWest()
-      ]);
-      map.fitBounds(poly.getBounds());
+      map.fitBounds(e.geocode.bbox);
     }).addTo(map);
 
   const baseMaps = {
@@ -225,14 +130,8 @@
 
   L.control.measure({
     primaryLengthUnit: 'meters',
-    secondaryLengthUnit: 'kilometers',
-    primaryAreaUnit: 'sqmeters',
-    secondaryAreaUnit: 'hectares',
-    activeColor: '#db4a29',
-    completedColor: '#9b2d14'
+    secondaryLengthUnit: 'kilometers'
   }).addTo(map);
-
-  const layerTooltips = new Map();
 
   const drawControl = new L.Control.Draw({
     edit: { featureGroup: drawnItems },
@@ -247,35 +146,62 @@
   });
   map.addControl(drawControl);
 
-  function createTooltip(nombre, layer) {
-    const tooltip = L.tooltip({ permanent: true, direction: 'top', offset: [0, -10], className: 'label-tooltip' })
-      .setContent(nombre)
-      .setLatLng(layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter());
-    labelLayer.addLayer(tooltip);
-    layerTooltips.set(layer._leaflet_id, tooltip);
-  }
+  const layerTooltips = new Map();
 
-  function updateTooltip(layer) {
-    const tooltip = layerTooltips.get(layer._leaflet_id);
-    if (tooltip) {
-      tooltip.setLatLng(layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter());
-      tooltip.setContent(layer.feature?.properties?.nombre || "Sin nombre");
-    }
-  }
+function createTooltip(nombre, layer) {
+  const tooltip = L.tooltip({ permanent: true, direction: 'top', offset: [0, -10] })
+    .setContent(nombre)
+    .setLatLng(layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter());
+  
+  labelLayer.addLayer(tooltip);
+  layerTooltips.set(layer._leaflet_id, tooltip);
 
-  function mostrarModal(opciones) {
+  // Actualizar la posición de la etiqueta cuando el objeto se mueve
+  layer.on('move', function() {
+    tooltip.setLatLng(layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter());
+  });
+}
+
+function updateTooltip(layer) {
+  const tooltip = layerTooltips.get(layer._leaflet_id);
+  if (tooltip) {
+    tooltip.setLatLng(layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter());
+    tooltip.setContent(layer.feature?.properties?.nombre || "Sin nombre");
+  }
+}
+
+
+  function mostrarModal(opciones, nombreActual) {
     const modal = document.getElementById('modal');
     const selectModal = document.getElementById('modal-select');
+    const boton = document.getElementById('modal-confirm');
     selectModal.innerHTML = '';
-    opciones.forEach(opt => {
+
+    // Crear la opción predeterminada con el nombre actual
+    const optionActual = document.createElement('option');
+    optionActual.value = nombreActual;
+    optionActual.textContent = nombreActual;
+    selectModal.appendChild(optionActual);
+
+    if (opciones.length === 1) {
       const option = document.createElement('option');
-      option.value = opt;
-      option.textContent = opt;
+      option.value = opciones[0];
+      option.textContent = opciones[0];
       selectModal.appendChild(option);
-    });
+      selectModal.disabled = true;
+    } else {
+      opciones.forEach(opt => {
+        const option = document.createElement('option');
+        option.value = opt;
+        option.textContent = opt;
+        selectModal.appendChild(option);
+      });
+      selectModal.disabled = false;
+    }
+
     return new Promise(resolve => {
       modal.style.display = 'block';
-      document.getElementById('modal-confirm').onclick = () => {
+      boton.onclick = () => {
         modal.style.display = 'none';
         resolve(selectModal.value);
       };
@@ -284,30 +210,26 @@
 
   map.on(L.Draw.Event.CREATED, async function (e) {
     const layer = e.layer;
-    if (layer instanceof L.Polygon) {
-      const geojson = layer.toGeoJSON();
-      if (turf.kinks(geojson).features.length > 0) {
-        alert("El polígono se cruza a sí mismo. Dibuja una forma válida.");
-        return;
-      }
+    if (layer instanceof L.Polygon && turf.kinks(layer.toGeoJSON()).features.length > 0) {
+      await mostrarModal(["ERROR: El polígono se cruza a sí mismo."]);
+      return;
     }
 
-    let nombre = select.value;
-    if (!confirm(`¿Deseas usar el nombre "${nombre}" para este elemento?`)) {
-      const opciones = Array.from(select.options).map(opt => opt.value);
-      nombre = await mostrarModal(opciones);
-      select.value = nombre;
+    let nombre = "ACUEDUCTO";
+    const opciones = ["AEROPUERTO", "ALCALDIA"]; // Opciones predefinidas
+    const respuesta = await mostrarModal(opciones, nombre);
+
+    if (respuesta !== opciones[0]) {
+      nombre = respuesta;
     }
+
     layer.feature = { type: "Feature", properties: { nombre } };
 
     const center = layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter();
-    const streetViewUrl = `https://www.google.com/maps?q=&layer=c&cbll=${center.lat},${center.lng}`;
     let popupContent = `<strong>Nombre:</strong> ${nombre}<br/>`;
     if (layer instanceof L.Marker) {
-      popupContent += `
-        <a href="${streetViewUrl}" target="_blank" class="streetview-link">
-          <div class="streetview-btn">Abrir Street View</div>
-        </a>`;
+      popupContent += `<a href="https://www.google.com/maps?q=&layer=c&cbll=${center.lat},${center.lng}" target="_blank">
+                         <div class="streetview-btn">Abrir Street View</div></a>`;
     }
 
     layer.bindPopup(popupContent);
@@ -316,25 +238,39 @@
   });
 
   map.on(L.Draw.Event.EDITED, async function (e) {
-    let selectedName = select.value;
-    if (!confirm(`¿Deseas actualizar el nombre de este elemento a "${selectedName}"?`)) {
-      const opciones = Array.from(select.options).map(opt => opt.value);
-      selectedName = await mostrarModal(opciones);
-      select.value = selectedName;
+    let nombre = "Sin nombre";
+    const editedLayers = e.layers;
+    editedLayers.eachLayer(function(layer) {
+      nombre = layer.feature.properties.nombre || "Sin nombre";
+    });
+
+    const opciones = ["ACUEDUCTO", "AEROPUERTO", "ALCALDIA"]; // Opciones predefinidas
+    const respuesta = await mostrarModal(opciones, nombre);
+
+    if (respuesta !== opciones[0]) {
+      nombre = respuesta;
     }
-    e.layers.eachLayer(function(layer) {
-      layer.feature.properties.nombre = selectedName;
+
+    editedLayers.eachLayer(layer => {
+      layer.feature.properties.nombre = nombre;
       const center = layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter();
-      const streetViewUrl = `https://www.google.com/maps?q=&layer=c&cbll=${center.lat},${center.lng}`;
-      let popupContent = `<strong>Nombre:</strong> ${selectedName}<br/>`;
+      let popupContent = `<strong>Nombre:</strong> ${nombre}<br/>`;
       if (layer instanceof L.Marker) {
-        popupContent += `
-          <a href="${streetViewUrl}" target="_blank" class="streetview-link">
-            <div class="streetview-btn">Abrir Street View</div>
-          </a>`;
+        popupContent += `<a href="https://www.google.com/maps?q=&layer=c&cbll=${center.lat},${center.lng}" target="_blank">
+                           <div class="streetview-btn">Abrir Street View</div></a>`;
       }
       layer.bindPopup(popupContent);
       updateTooltip(layer);
+    });
+  });
+
+  map.on(L.Draw.Event.DELETED, function (e) {
+    e.layers.eachLayer(function (layer) {
+      const tooltip = layerTooltips.get(layer._leaflet_id);
+      if (tooltip) {
+        labelLayer.removeLayer(tooltip);
+        layerTooltips.delete(layer._leaflet_id);
+      }
     });
   });
 
@@ -348,14 +284,12 @@
         onEachFeature: function (feature, layer) {
           const nombre = feature.properties?.nombre || "Sin nombre";
           const center = layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter();
-          const streetViewUrl = `https://www.google.com/maps?q=&layer=c&cbll=${center.lat},${center.lng}`;
           let popupContent = `<strong>Nombre:</strong> ${nombre}<br/>`;
           if (layer instanceof L.Marker) {
-            popupContent += `
-              <a href="${streetViewUrl}" target="_blank" class="streetview-link">
-                <div class="streetview-btn">Abrir Street View</div>
-              </a>`;
+            popupContent += `<a href="https://www.google.com/maps?q=&layer=c&cbll=${center.lat},${center.lng}" target="_blank">
+                               <div class="streetview-btn">Abrir Street View</div></a>`;
           }
+          layer.feature = feature;
           layer.bindPopup(popupContent);
           drawnItems.addLayer(layer);
           createTooltip(nombre, layer);
@@ -368,7 +302,7 @@
   function downloadGeoJSON() {
     const data = drawnItems.toGeoJSON();
     if (!data.features.length) {
-      alert("No hay elementos para exportar.");
+      mostrarModal(["No hay elementos para exportar."]);
       return;
     }
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
@@ -381,31 +315,14 @@
   }
 
   fetch('Municipios.geojson')
-    .then(response => response.json())
+    .then(res => res.json())
     .then(data => {
       const capaBoyaca = L.geoJSON(data, {
-        style: {
-          color: '#000000',
-          weight: 2,
-          fillOpacity: 0
-        }
-      }).addTo(map);
-
-      map.fitBounds(capaBoyaca.getBounds());
-      overlayMaps["Boyacá"] = capaBoyaca;
-      map.removeControl(map._layersControl);
-      L.control.layers(baseMaps, overlayMaps).addTo(map);
+        style: { color: '#3388ff', weight: 2, fillOpacity: 0 }
+      });
+      capaBoyaca.addTo(map);
+      overlayMaps["Municipios"] = capaBoyaca;
     });
-
-  map.on(L.Draw.Event.DELETED, function (e) {
-    e.layers.eachLayer(function (layer) {
-      const tooltip = layerTooltips.get(layer._leaflet_id);
-      if (tooltip) {
-        labelLayer.removeLayer(tooltip);
-        layerTooltips.delete(layer._leaflet_id);
-      }
-    });
-  });
 </script>
 </body>
 </html>
