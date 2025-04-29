@@ -79,6 +79,7 @@
     <label for="modal-select">Selecciona un nombre:</label>
     <select id="modal-select"></select>
     <button id="modal-confirm">Confirmar</button>
+    <button id="modal-cancel">Cancelar</button>
   </div>
 </div>
 
@@ -92,12 +93,10 @@
   const map = L.map('map').setView([5.5, -73.4], 8);
   const drawnItems = new L.FeatureGroup();
   const labelLayer = new L.LayerGroup();
-  const select = document.createElement('select');
-  
-  const geocoder = L.Control.geocoder({ defaultMarkGeocode: false })
-    .on('markgeocode', function(e) {
-      map.fitBounds(e.geocode.bbox);
-    }).addTo(map);
+  const layerTooltips = new Map();
+
+  L.Control.geocoder({ defaultMarkGeocode: false })
+    .on('markgeocode', e => map.fitBounds(e.geocode.bbox)).addTo(map);
 
   const baseMaps = {
     "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -106,15 +105,8 @@
     "Esri Satélite": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
       attribution: 'Tiles &copy; Esri'
     }),
-    "CartoDB Light": L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; CartoDB'
-    }),
-    "Stamen Toner": L.tileLayer('https://stamen-tiles.a.ssl.fastly.net/toner/{z}/{x}/{y}.png', {
-      attribution: 'Map tiles by Stamen Design'
-    }),
     "Google Earth Híbrido": L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
       maxZoom: 20,
-      subdomains: ['mt0','mt1','mt2','mt3'],
       attribution: '&copy; Google'
     })
   };
@@ -128,10 +120,7 @@
   map.addLayer(drawnItems);
   map.addLayer(labelLayer);
 
-  L.control.measure({
-    primaryLengthUnit: 'meters',
-    secondaryLengthUnit: 'kilometers'
-  }).addTo(map);
+  L.control.measure({ primaryLengthUnit: 'meters', secondaryLengthUnit: 'kilometers' }).addTo(map);
 
   const drawControl = new L.Control.Draw({
     edit: { featureGroup: drawnItems },
@@ -146,64 +135,55 @@
   });
   map.addControl(drawControl);
 
-  const layerTooltips = new Map();
-
-function createTooltip(nombre, layer) {
-  const tooltip = L.tooltip({ permanent: true, direction: 'top', offset: [0, -10] })
-    .setContent(nombre)
-    .setLatLng(layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter());
-  
-  labelLayer.addLayer(tooltip);
-  layerTooltips.set(layer._leaflet_id, tooltip);
-
-  // Actualizar la posición de la etiqueta cuando el objeto se mueve
-  layer.on('move', function() {
-    tooltip.setLatLng(layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter());
-  });
-}
-
-function updateTooltip(layer) {
-  const tooltip = layerTooltips.get(layer._leaflet_id);
-  if (tooltip) {
-    tooltip.setLatLng(layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter());
-    tooltip.setContent(layer.feature?.properties?.nombre || "Sin nombre");
+  function createTooltip(nombre, layer) {
+    const tooltip = L.tooltip({ permanent: true, direction: 'top', offset: [0, -10] })
+      .setContent(nombre)
+      .setLatLng(layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter());
+    labelLayer.addLayer(tooltip);
+    layerTooltips.set(layer._leaflet_id, tooltip);
+    layer.on('move', () => {
+      tooltip.setLatLng(layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter());
+    });
   }
-}
 
+  function updateTooltip(layer) {
+    const tooltip = layerTooltips.get(layer._leaflet_id);
+    if (tooltip) {
+      tooltip.setLatLng(layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter());
+      tooltip.setContent(layer.feature?.properties?.nombre || "Sin nombre");
+    }
+  }
 
   function mostrarModal(opciones, nombreActual) {
     const modal = document.getElementById('modal');
     const selectModal = document.getElementById('modal-select');
-    const boton = document.getElementById('modal-confirm');
+    const botonConfirm = document.getElementById('modal-confirm');
+    const botonCancel = document.getElementById('modal-cancel');
     selectModal.innerHTML = '';
 
-    // Crear la opción predeterminada con el nombre actual
     const optionActual = document.createElement('option');
     optionActual.value = nombreActual;
     optionActual.textContent = nombreActual;
     selectModal.appendChild(optionActual);
 
-    if (opciones.length === 1) {
+    opciones.forEach(opt => {
       const option = document.createElement('option');
-      option.value = opciones[0];
-      option.textContent = opciones[0];
+      option.value = opt;
+      option.textContent = opt;
       selectModal.appendChild(option);
-      selectModal.disabled = true;
-    } else {
-      opciones.forEach(opt => {
-        const option = document.createElement('option');
-        option.value = opt;
-        option.textContent = opt;
-        selectModal.appendChild(option);
-      });
-      selectModal.disabled = false;
-    }
+    });
 
     return new Promise(resolve => {
       modal.style.display = 'block';
-      boton.onclick = () => {
+
+      botonConfirm.onclick = () => {
         modal.style.display = 'none';
         resolve(selectModal.value);
+      };
+
+      botonCancel.onclick = () => {
+        modal.style.display = 'none';
+        resolve(null);
       };
     });
   }
@@ -211,21 +191,19 @@ function updateTooltip(layer) {
   map.on(L.Draw.Event.CREATED, async function (e) {
     const layer = e.layer;
     if (layer instanceof L.Polygon && turf.kinks(layer.toGeoJSON()).features.length > 0) {
-      await mostrarModal(["ERROR: El polígono se cruza a sí mismo."]);
+      await mostrarModal(["ERROR: El polígono se cruza a sí mismo."], "ERROR");
       return;
     }
 
-    let nombre = "ACUEDUCTO";
-    const opciones = ["AEROPUERTO", "ALCALDIA"]; // Opciones predefinidas
-    const respuesta = await mostrarModal(opciones, nombre);
+    const opciones = ["ACUEDUCTO", "AEROPUERTO", "ALCALDIA"];
+    const respuesta = await mostrarModal(opciones, "ACUEDUCTO");
 
-    if (respuesta !== opciones[0]) {
-      nombre = respuesta;
-    }
+    if (!respuesta) return; // Cancelado
 
+    const nombre = respuesta;
     layer.feature = { type: "Feature", properties: { nombre } };
-
     const center = layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter();
+
     let popupContent = `<strong>Nombre:</strong> ${nombre}<br/>`;
     if (layer instanceof L.Marker) {
       popupContent += `<a href="https://www.google.com/maps?q=&layer=c&cbll=${center.lat},${center.lng}" target="_blank">
@@ -238,20 +216,20 @@ function updateTooltip(layer) {
   });
 
   map.on(L.Draw.Event.EDITED, async function (e) {
-    let nombre = "Sin nombre";
     const editedLayers = e.layers;
-    editedLayers.eachLayer(function(layer) {
+    let nombre = "Sin nombre";
+
+    editedLayers.eachLayer(layer => {
       nombre = layer.feature.properties.nombre || "Sin nombre";
     });
 
-    const opciones = ["ACUEDUCTO", "AEROPUERTO", "ALCALDIA"]; // Opciones predefinidas
+    const opciones = ["ACUEDUCTO", "AEROPUERTO", "ALCALDIA"];
     const respuesta = await mostrarModal(opciones, nombre);
 
-    if (respuesta !== opciones[0]) {
-      nombre = respuesta;
-    }
+    if (!respuesta) return; // Cancelado
 
     editedLayers.eachLayer(layer => {
+      const nombre = respuesta;
       layer.feature.properties.nombre = nombre;
       const center = layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter();
       let popupContent = `<strong>Nombre:</strong> ${nombre}<br/>`;
@@ -265,7 +243,7 @@ function updateTooltip(layer) {
   });
 
   map.on(L.Draw.Event.DELETED, function (e) {
-    e.layers.eachLayer(function (layer) {
+    e.layers.eachLayer(layer => {
       const tooltip = layerTooltips.get(layer._leaflet_id);
       if (tooltip) {
         labelLayer.removeLayer(tooltip);
@@ -302,7 +280,7 @@ function updateTooltip(layer) {
   function downloadGeoJSON() {
     const data = drawnItems.toGeoJSON();
     if (!data.features.length) {
-      mostrarModal(["No hay elementos para exportar."]);
+      mostrarModal(["No hay elementos para exportar."], "Advertencia");
       return;
     }
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
