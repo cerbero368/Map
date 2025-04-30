@@ -230,7 +230,7 @@ const respuesta = await mostrarModal(opciones, "SELECCIONA UNA OPCIÓN");
       nombre = layer.feature.properties.nombre || "Sin nombre";
     });
 
-    const opciones = ["PUENTE"];
+    const opciones = ["PARQUE", "BASE", "ZONA ROSA", "HOSPITAL", "COLEGIO", "IGLESIA", "PUENTE", "ESCOLAR"];
     const respuesta = await mostrarModal(opciones, nombre);
 
     if (!respuesta) return; // Cancelado
