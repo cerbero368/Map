@@ -203,7 +203,7 @@
     }
 
     const opciones = ["ZONA_ROSA"];
-    const respuesta = await mostrarModal(opciones, "ESTACION DE POLICIA,PARQUE");
+    const respuesta = await mostrarModal(opciones, "ESTACION DE POLICIA, PARQUE, BASE");
 
     if (!respuesta) return; // Cancelado
 
@@ -230,7 +230,7 @@
       nombre = layer.feature.properties.nombre || "Sin nombre";
     });
 
-    const opciones = ["ZONA_ROSA"];
+    const opciones = ["PUENTE"];
     const respuesta = await mostrarModal(opciones, nombre);
 
     if (!respuesta) return; // Cancelado
