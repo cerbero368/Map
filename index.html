@@ -202,8 +202,8 @@
       return;
     }
 
-    const opciones = ["ZONA_ROSA"];
-    const respuesta = await mostrarModal(opciones, "ESTACION DE POLICIA, PARQUE, BASE");
+const opciones = ["ESTACIÓN DE POLICÍA", "PARQUE", "BASE", "ZONA ROSA", "HOSPITAL", "COLEGIO", "IGLESIA", "PUENTE", "ESCOLAR"];
+const respuesta = await mostrarModal(opciones, "SELECCIONA UNA OPCIÓN");
 
     if (!respuesta) return; // Cancelado
 
