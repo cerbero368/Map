@@ -21,8 +21,9 @@
       box-shadow: 0 0 10px rgba(0,0,0,0.3);
       font-family: sans-serif;
     }
-    .controls input, .controls button {
+    .controls select, .controls input, .controls button {
       margin-top: 5px;
+      display: block;
       width: 100%;
     }
     #modal {
@@ -40,6 +41,7 @@
       padding: 20px;
       border-radius: 10px;
       font-family: sans-serif;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3);
     }
     #modal select, #modal button {
       margin-top: 10px;
@@ -50,11 +52,11 @@
       padding: 6px 12px;
       margin-top: 5px;
       background-color: #f1c40f;
-      color: black;
+      color: black !important;
       border: none;
       border-radius: 6px;
       text-align: center;
-      text-decoration: none;
+      text-decoration: none !important;
       font-size: 14px;
       cursor: pointer;
       transition: background-color 0.3s ease;
@@ -65,195 +67,247 @@
   </style>
 </head>
 <body>
-  <div id="map"></div>
+<div id="map"></div>
 
-  <div class="controls">
-    <input type="file" id="upload" accept=".geojson" />
-    <button onclick="downloadGeoJSON()">Exportar GeoJSON</button>
+<div class="controls">
+  <input type="file" id="upload" accept=".geojson" />
+  <button onclick="downloadGeoJSON()">Exportar GeoJSON</button>
+</div>
+
+<div id="modal">
+  <div id="modal-content">
+    <label for="modal-select">Selecciona un nombre:</label>
+    <select id="modal-select"></select>
+    <button id="modal-confirm">Confirmar</button>
+    <button id="modal-cancel">Cancelar</button>
   </div>
+</div>
 
-  <div id="modal">
-    <div id="modal-content">
-      <label for="modal-select">Selecciona un nombre:</label>
-      <select id="modal-select"></select>
-      <button id="modal-confirm">Confirmar</button>
-      <button id="modal-cancel">Cancelar</button>
-    </div>
-  </div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+<script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+<script src="https://unpkg.com/leaflet-measure/dist/leaflet-measure.js"></script>
+<script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
-  <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
-  <script src="https://unpkg.com/leaflet-measure/dist/leaflet-measure.js"></script>
-  <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+<script>
+  const map = L.map('map').setView([5.5, -73.4], 9);
+  const drawnItems = new L.FeatureGroup();
+  const labelLayer = new L.LayerGroup();
+  const layerTooltips = new Map();
 
-  <script>
-    const map = L.map('map').setView([5.5, -73.4], 9);
-    const drawnItems = new L.FeatureGroup();
-    const labelLayer = new L.LayerGroup();
-    const layerTooltips = new Map();
+  L.Control.geocoder({ defaultMarkGeocode: false })
+    .on('markgeocode', e => map.fitBounds(e.geocode.bbox)).addTo(map);
 
-    L.control.layers({
-      "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors'
-      }).addTo(map),
-      "Esri Satélite": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-        attribution: 'Tiles &copy; Esri'
-      }),
-      "Google Earth Híbrido": L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
-        maxZoom: 20,
-        attribution: '&copy; Google'
-      })
-    }, {
-      "Elementos Dibujados": drawnItems,
-      "Etiquetas": labelLayer
-    }).addTo(map);
+  const baseMaps = {
+    "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map),
+    "Esri Satélite": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      attribution: 'Tiles &copy; Esri'
+    }),
+    "CartoDB Light": L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; CartoDB'
+    }),
+    "Stamen Toner": L.tileLayer('https://stamen-tiles.a.ssl.fastly.net/toner/{z}/{x}/{y}.png', {
+      attribution: 'Map tiles by Stamen Design'
+    }),
+    "Google Earth Híbrido": L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+      maxZoom: 20,
+      subdomains: ['mt0','mt1','mt2','mt3'],
+      attribution: '&copy; Google'
+    })
+  };
 
-    L.Control.geocoder({ defaultMarkGeocode: false })
-      .on('markgeocode', e => map.fitBounds(e.geocode.bbox)).addTo(map);
+  const overlayMaps = {
+    "Elementos Dibujados": drawnItems,
+    "Etiquetas": labelLayer
+  };
 
-    map.addLayer(drawnItems);
-    map.addLayer(labelLayer);
-    L.control.measure({ primaryLengthUnit: 'meters' }).addTo(map);
+  L.control.layers(baseMaps, overlayMaps).addTo(map);
+  map.addLayer(drawnItems);
+  map.addLayer(labelLayer);
 
-    const drawControl = new L.Control.Draw({
-      edit: { featureGroup: drawnItems },
-      draw: {
-        polygon: true,
-        polyline: true,
-        rectangle: false,
-        circle: false,
-        marker: true,
-        circlemarker: false
-      }
+  L.control.measure({ primaryLengthUnit: 'meters', secondaryLengthUnit: 'kilometers' }).addTo(map);
+
+  const drawControl = new L.Control.Draw({
+    edit: { featureGroup: drawnItems },
+    draw: {
+      polygon: true,
+      polyline: true,
+      rectangle: false,
+      circle: false,
+      circlemarker: false,
+      marker: true
+    }
+  });
+  map.addControl(drawControl);
+
+  function createTooltip(nombre, layer) {
+    const tooltip = L.tooltip({ permanent: true, direction: 'top', offset: [0, -10] })
+      .setContent(nombre)
+      .setLatLng(layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter());
+    labelLayer.addLayer(tooltip);
+    layerTooltips.set(layer._leaflet_id, tooltip);
+    layer.on('move', () => {
+      tooltip.setLatLng(layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter());
     });
-    map.addControl(drawControl);
+  }
 
-    const opciones = ["ACUEDUCTO", "ALCALDIA", "ANTENA", "HOSPITAL", "ESCUELA", "PARQUE", "IGLESIA", "PUENTE", "QUEBRADA", "RIO", "CERRO", "ZONA INDUSTRIAL", "CAMINO"];
+  function updateTooltip(layer) {
+    const tooltip = layerTooltips.get(layer._leaflet_id);
+    if (tooltip) {
+      tooltip.setLatLng(layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter());
+      tooltip.setContent(layer.feature?.properties?.nombre || "Sin nombre");
+    }
+  }
 
-    function mostrarModal(opciones, valorActual) {
-      const modal = document.getElementById('modal');
-      const select = document.getElementById('modal-select');
-      select.innerHTML = '';
-      if (valorActual && !opciones.includes(valorActual)) {
-        const opt = document.createElement('option');
-        opt.value = valorActual;
-        opt.textContent = valorActual;
-        select.appendChild(opt);
-      }
-      opciones.forEach(opt => {
-        const option = document.createElement('option');
-        option.value = opt;
-        option.textContent = opt;
-        select.appendChild(option);
-      });
+  function mostrarModal(opciones, nombreActual) {
+    const modal = document.getElementById('modal');
+    const selectModal = document.getElementById('modal-select');
+    const botonConfirm = document.getElementById('modal-confirm');
+    const botonCancel = document.getElementById('modal-cancel');
+    selectModal.innerHTML = '';
+
+    const optionActual = document.createElement('option');
+    optionActual.value = nombreActual;
+    optionActual.textContent = nombreActual;
+    selectModal.appendChild(optionActual);
+
+    opciones.forEach(opt => {
+      const option = document.createElement('option');
+      option.value = opt;
+      option.textContent = opt;
+      selectModal.appendChild(option);
+    });
+
+    return new Promise(resolve => {
       modal.style.display = 'block';
-      return new Promise(resolve => {
-        document.getElementById('modal-confirm').onclick = () => {
-          modal.style.display = 'none';
-          resolve(select.value);
-        };
-        document.getElementById('modal-cancel').onclick = () => {
-          modal.style.display = 'none';
-          resolve(null);
-        };
-      });
+
+      botonConfirm.onclick = () => {
+        modal.style.display = 'none';
+        resolve(selectModal.value);
+      };
+
+      botonCancel.onclick = () => {
+        modal.style.display = 'none';
+        resolve(null);
+      };
+    });
+  }
+
+  map.on(L.Draw.Event.CREATED, async function (e) {
+    const layer = e.layer;
+    if (layer instanceof L.Polygon && turf.kinks(layer.toGeoJSON()).features.length > 0) {
+      await mostrarModal(["ERROR: El polígono se cruza a sí mismo."], "ERROR");
+      return;
     }
 
-    function createTooltip(nombre, layer) {
-      const tooltip = L.tooltip({ permanent: true, direction: 'top', offset: [0, -10] })
-        .setContent(nombre)
-        .setLatLng(layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter());
-      labelLayer.addLayer(tooltip);
-      layerTooltips.set(layer._leaflet_id, tooltip);
-      layer.on('move', () => {
-        tooltip.setLatLng(layer.getLatLng());
-      });
+const opciones = ["ACUEDUCTO", "AEROPUERTO", "ALCALDIA", "ALCANTARILLA", "ANCIANATO", "ANTENA", "BOMBREROS", "CAMARA DE COMERCIO", "CANCHA", "CANTERA", "CAÑO", "CARCEL", "CASA DEL ALCALDE", "CEMENTERIO", "CERRO", "COLISEO", "COMISARIA DE FAMILIA", "CONTRALORIA", "CRUCE", "CRUZ ROJA", "DEFENSA CIVIL", "DEFENSORIA DEL PUEBLO", "DIAN", "EMPRESA MUNICIPAL", "EMPRESA PRIVADA", "ENTIDAD FINACIERA", "ENTIDADES EDUCATIVA", "ESTABLECIMIENTO PÚBLICO", "ESTACIÓN DE FERROCARRIL", "ESTACIÓN DE GASOLINA", "ESTACIÓN DE POLICIA", "ESTADIO", "FISCALIA", "GASODUCTO", "GOBERNACION", "HELIPUERTO", "HOSPITAL", "ICBF", "IGLESIA", "INSPECCION DE POLICIA", "JUZGADO", "LAGUNA", "MATADERO", "MINISTERIO", "MUELLE", "NOTARIA", "OLEODUCTO", "PARQUE", "PARQUEADERO", "PEAJE", "PERSONERIA", "PISTA DE ATERRIZAJE", "PLAZA DE MERCADO", "PLAZA DE TOROS", "POLIDEPORTIVO", "POSIBLE CONCENTRACIÓN SUBVERSIVA", "POSIBLE UBICACIÓN DE CILINDROS", "POSIBLE UBICACIÓN M-60", "POTRERO", "POZO", "PROCURADURIA", "PUENTE", "PUNTOS EMBOSCADA", "QUEBRADA", "REGISTRADURIA", "RESGUADO INDÍGENA", "RIO", "RUTA DE DESPLIEQUE", "SALON COMUNAL", "SUBESTACIÓN DE POLICIA", "SUBESTACIÓN ELÉCTRICA", "TELECOMUNICACIONES", "TERMINAL DE TRANSPORTE", "TORRE", "TRAMO CRÍTICO", "TRAPICHE", "TÚNEL", "VÍA DE ACCESO", "VIADUCTO", "ZONA BOSCOSAZONA", "ZONA INSDUSTRIAL", "ZONAS DE DESEMBARQUE"];
+const respuesta = await mostrarModal(opciones, "ACUEDUCTO");
+
+    if (!respuesta) return; // Cancelado
+
+    const nombre = respuesta;
+    layer.feature = { type: "Feature", properties: { nombre } };
+    const center = layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter();
+
+    let popupContent = `<strong>Nombre:</strong> ${nombre}<br/>`;
+    if (layer instanceof L.Marker) {
+      popupContent += `<a href="https://www.google.com/maps?q=&layer=c&cbll=${center.lat},${center.lng}" target="_blank">
+                         <div class="streetview-btn">Abrir Street View</div></a>`;
     }
 
-    function updateTooltip(layer) {
+    layer.bindPopup(popupContent);
+    drawnItems.addLayer(layer);
+    createTooltip(nombre, layer);
+  });
+
+  map.on(L.Draw.Event.EDITED, async function (e) {
+    const editedLayers = e.layers;
+    let nombre = "Sin nombre";
+
+    editedLayers.eachLayer(layer => {
+      nombre = layer.feature.properties.nombre || "Sin nombre";
+    });
+
+    const opciones = ["ACUEDUCTO", "AEROPUERTO", "ALCALDIA", "ALCANTARILLA", "ANCIANATO", "ANTENA", "BOMBREROS", "CAMARA DE COMERCIO", "CANCHA", "CANTERA", "CAÑO", "CARCEL", "CASA DEL ALCALDE", "CEMENTERIO", "CERRO", "COLISEO", "COMISARIA DE FAMILIA", "CONTRALORIA", "CRUCE", "CRUZ ROJA", "DEFENSA CIVIL", "DEFENSORIA DEL PUEBLO", "DIAN", "EMPRESA MUNICIPAL", "EMPRESA PRIVADA", "ENTIDAD FINACIERA", "ENTIDADES EDUCATIVA", "ESTABLECIMIENTO PÚBLICO", "ESTACIÓN DE FERROCARRIL", "ESTACIÓN DE GASOLINA", "ESTACIÓN DE POLICIA", "ESTADIO", "FISCALIA", "GASODUCTO", "GOBERNACION", "HELIPUERTO", "HOSPITAL", "ICBF", "IGLESIA", "INSPECCION DE POLICIA", "JUZGADO", "LAGUNA", "MATADERO", "MINISTERIO", "MUELLE", "NOTARIA", "OLEODUCTO", "PARQUE", "PARQUEADERO", "PEAJE", "PERSONERIA", "PISTA DE ATERRIZAJE", "PLAZA DE MERCADO", "PLAZA DE TOROS", "POLIDEPORTIVO", "POSIBLE CONCENTRACIÓN SUBVERSIVA", "POSIBLE UBICACIÓN DE CILINDROS", "POSIBLE UBICACIÓN M-60", "POTRERO", "POZO", "PROCURADURIA", "PUENTE", "PUNTOS EMBOSCADA", "QUEBRADA", "REGISTRADURIA", "RESGUADO INDÍGENA", "RIO", "RUTA DE DESPLIEQUE", "SALON COMUNAL", "SUBESTACIÓN DE POLICIA", "SUBESTACIÓN ELÉCTRICA", "TELECOMUNICACIONES", "TERMINAL DE TRANSPORTE", "TORRE", "TRAMO CRÍTICO", "TRAPICHE", "TÚNEL", "VÍA DE ACCESO", "VIADUCTO", "ZONA BOSCOSAZONA", "ZONA INSDUSTRIAL", "ZONAS DE DESEMBARQUE"];
+    const respuesta = await mostrarModal(opciones, nombre);
+
+    if (!respuesta) return; // Cancelado
+
+    editedLayers.eachLayer(layer => {
+      const nombre = respuesta;
+      layer.feature.properties.nombre = nombre;
+      const center = layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter();
+      let popupContent = `<strong>Nombre:</strong> ${nombre}<br/>`;
+      if (layer instanceof L.Marker) {
+        popupContent += `<a href="https://www.google.com/maps?q=&layer=c&cbll=${center.lat},${center.lng}" target="_blank">
+                           <div class="streetview-btn">Abrir Street View</div></a>`;
+      }
+      layer.bindPopup(popupContent);
+      updateTooltip(layer);
+    });
+  });
+
+  map.on(L.Draw.Event.DELETED, function (e) {
+    e.layers.eachLayer(layer => {
       const tooltip = layerTooltips.get(layer._leaflet_id);
       if (tooltip) {
-        tooltip.setLatLng(layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter());
-        tooltip.setContent(layer.feature?.properties?.nombre || "Sin nombre");
-      }
-    }
-
-    map.on(L.Draw.Event.CREATED, async function (e) {
-      const layer = e.layer;
-      if (layer instanceof L.Polygon && turf.kinks(layer.toGeoJSON()).features.length > 0) {
-        alert("El polígono se cruza a sí mismo. Corrige la forma.");
-        return;
-      }
-
-      const nombre = await mostrarModal(opciones, "ACUEDUCTO");
-      if (!nombre) return;
-
-      layer.feature = { type: "Feature", properties: { nombre } };
-      const center = layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter();
-
-      let popup = `<strong>Nombre:</strong> ${nombre}<br/>`;
-      if (layer instanceof L.Marker) {
-        popup += `<a href="https://www.google.com/maps?q=&layer=c&cbll=${center.lat},${center.lng}" target="_blank">
-                    <div class="streetview-btn">Abrir Street View</div></a>`;
-      }
-
-      layer.bindPopup(popup);
-      drawnItems.addLayer(layer);
-      createTooltip(nombre, layer);
-    });
-
-    map.on(L.Draw.Event.EDITED, async function (e) {
-      const layers = e.layers;
-      for (const layer of layers.getLayers()) {
-        const actual = layer.feature?.properties?.nombre || "Sin nombre";
-        const nuevo = await mostrarModal(opciones, actual);
-        if (!nuevo) continue;
-        layer.feature.properties.nombre = nuevo;
-        updateTooltip(layer);
+        labelLayer.removeLayer(tooltip);
+        layerTooltips.delete(layer._leaflet_id);
       }
     });
+  });
 
-    document.getElementById("upload").addEventListener("change", function (e) {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = function (e) {
-        const data = JSON.parse(e.target.result);
-        L.geoJSON(data, {
-          onEachFeature: (feature, layer) => {
-            if (feature.properties?.nombre) {
-              layer.feature = feature;
-              drawnItems.addLayer(layer);
-              createTooltip(feature.properties.nombre, layer);
-            }
+  document.getElementById('upload').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const geojson = JSON.parse(e.target.result);
+      L.geoJSON(geojson, {
+        onEachFeature: function (feature, layer) {
+          const nombre = feature.properties?.nombre || "Sin nombre";
+          const center = layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter();
+          let popupContent = `<strong>Nombre:</strong> ${nombre}<br/>`;
+          if (layer instanceof L.Marker) {
+            popupContent += `<a href="https://www.google.com/maps?q=&layer=c&cbll=${center.lat},${center.lng}" target="_blank">
+                               <div class="streetview-btn">Abrir Street View</div></a>`;
           }
-        });
-      };
-      reader.readAsText(file);
-    });
-
-    function downloadGeoJSON() {
-      const features = [];
-      drawnItems.eachLayer(layer => {
-        if (layer.toGeoJSON) {
-          const json = layer.toGeoJSON();
-          json.properties = layer.feature?.properties || {};
-          features.push(json);
+          layer.feature = feature;
+          layer.bindPopup(popupContent);
+          drawnItems.addLayer(layer);
+          createTooltip(nombre, layer);
         }
       });
-      const geojson = {
-        type: "FeatureCollection",
-        features
-      };
-      const blob = new Blob([JSON.stringify(geojson, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "datos.geojson";
-      a.click();
-      URL.revokeObjectURL(url);
+    };
+    reader.readAsText(file);
+  });
+
+  function downloadGeoJSON() {
+    const data = drawnItems.toGeoJSON();
+    if (!data.features.length) {
+      mostrarModal(["No hay elementos para exportar."], "Advertencia");
+      return;
     }
-  </script>
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "mapa.geojson";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  fetch('Municipios.geojson')
+    .then(res => res.json())
+    .then(data => {
+      const capaBoyaca = L.geoJSON(data, {
+        style: { color: '#000000', weight: 2, fillOpacity: 0 }
+      });
+      capaBoyaca.addTo(map);
+      overlayMaps["Municipios"] = capaBoyaca;
+    });
+</script>
 </body>
 </html>
