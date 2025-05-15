@@ -43,7 +43,7 @@
       font-family: sans-serif;
       box-shadow: 0 0 10px rgba(0,0,0,0.3);
     }
-    #modal select, #modal button {
+    #modal select, #modal button, #modal textarea {
       margin-top: 10px;
       width: 100%;
     }
@@ -78,6 +78,8 @@
   <div id="modal-content">
     <label for="modal-select">Selecciona un nombre:</label>
     <select id="modal-select"></select>
+    <label for="modal-desc">Descripción (opcional):</label>
+    <textarea id="modal-desc" rows="3" placeholder="Escribe una descripción..."></textarea>
     <button id="modal-confirm">Confirmar</button>
     <button id="modal-cancel">Cancelar</button>
   </div>
@@ -161,13 +163,16 @@
     }
   }
 
-  function mostrarModal(opciones, nombreActual) {
+  // MODAL MODIFICADO
+  function mostrarModal(opciones, nombreActual, descActual = "") {
     const modal = document.getElementById('modal');
     const selectModal = document.getElementById('modal-select');
+    const descModal = document.getElementById('modal-desc');
     const botonConfirm = document.getElementById('modal-confirm');
     const botonCancel = document.getElementById('modal-cancel');
     selectModal.innerHTML = '';
 
+    // Primera opción es el nombre actual
     const optionActual = document.createElement('option');
     optionActual.value = nombreActual;
     optionActual.textContent = nombreActual;
@@ -180,12 +185,14 @@
       selectModal.appendChild(option);
     });
 
+    descModal.value = descActual || "";
+
     return new Promise(resolve => {
       modal.style.display = 'block';
 
       botonConfirm.onclick = () => {
         modal.style.display = 'none';
-        resolve(selectModal.value);
+        resolve({nombre: selectModal.value, descripcion: descModal.value});
       };
 
       botonCancel.onclick = () => {
@@ -202,16 +209,20 @@
       return;
     }
 
-const opciones = ["ACUEDUCTO", "AEROPUERTO", "ALCALDIA", "ALCANTARILLA", "ANCIANATO", "ANTENA", "BOMBREROS", "CAMARA DE COMERCIO", "CANCHA", "CANTERA", "CAÑO", "CARCEL", "CASA DEL ALCALDE", "CEMENTERIO", "CERRO", "COLISEO", "COMISARIA DE FAMILIA", "CONTRALORIA", "CRUCE", "CRUZ ROJA", "DEFENSA CIVIL", "DEFENSORIA DEL PUEBLO", "DIAN", "EMPRESA MUNICIPAL", "EMPRESA PRIVADA", "ENTIDAD FINACIERA", "ENTIDADES EDUCATIVA", "ESTABLECIMIENTO PÚBLICO", "ESTACIÓN DE FERROCARRIL", "ESTACIÓN DE GASOLINA", "ESTACIÓN DE POLICIA", "ESTADIO", "FISCALIA", "GASODUCTO", "GOBERNACION", "HELIPUERTO", "HOSPITAL", "ICBF", "IGLESIA", "INSPECCION DE POLICIA", "JUZGADO", "LAGUNA", "MATADERO", "MINISTERIO", "MUELLE", "NOTARIA", "OLEODUCTO", "PARQUE", "PARQUEADERO", "PEAJE", "PERSONERIA", "PISTA DE ATERRIZAJE", "PLAZA DE MERCADO", "PLAZA DE TOROS", "POLIDEPORTIVO", "POSIBLE CONCENTRACIÓN SUBVERSIVA", "POSIBLE UBICACIÓN DE CILINDROS", "POSIBLE UBICACIÓN M-60", "POTRERO", "POZO", "PROCURADURIA", "PUENTE", "PUNTOS EMBOSCADA", "QUEBRADA", "REGISTRADURIA", "RESGUADO INDÍGENA", "RIO", "RUTA DE DESPLIEQUE", "SALON COMUNAL", "SUBESTACIÓN DE POLICIA", "SUBESTACIÓN ELÉCTRICA", "TELECOMUNICACIONES", "TERMINAL DE TRANSPORTE", "TORRE", "TRAMO CRÍTICO", "TRAPICHE", "TÚNEL", "VÍA DE ACCESO", "VIADUCTO", "ZONA BOSCOSAZONA", "ZONA INSDUSTRIAL", "ZONAS DE DESEMBARQUE"];
-const respuesta = await mostrarModal(opciones, "ACUEDUCTO");
+    const opciones = ["ACUEDUCTO", "AEROPUERTO", "ALCALDIA", "ALCANTARILLA", "ANCIANATO", "ANTENA", "BOMBREROS", "CAMARA DE COMERCIO", "CANCHA", "CANTERA", "CAÑO", "CARCEL", "CASA DEL ALCALDE", "CEMENTERIO", "CERRO", "COLISEO", "COMISARIA DE FAMILIA", "CONTRALORIA", "CRUCE", "CRUZ ROJA", "DEFENSA CIVIL", "DEFENSORIA DEL PUEBLO", "DIAN", "EMPRESA MUNICIPAL", "EMPRESA PRIVADA", "ENTIDAD FINACIERA", "ENTIDADES EDUCATIVA", "ESTABLECIMIENTO PÚBLICO", "ESTACIÓN DE FERROCARRIL", "ESTACIÓN DE GASOLINA", "ESTACIÓN DE POLICIA", "ESTADIO", "FISCALIA", "GASODUCTO", "GOBERNACION", "HELIPUERTO", "HOSPITAL", "ICBF", "IGLESIA", "INSPECCION DE POLICIA", "JUZGADO", "LAGUNA", "MATADERO", "MINISTERIO", "MUELLE", "NOTARIA", "OLEODUCTO", "PARQUE", "PARQUEADERO", "PEAJE", "PERSONERIA", "PISTA DE ATERRIZAJE", "PLAZA DE MERCADO", "PLAZA DE TOROS", "POLIDEPORTIVO", "POSIBLE CONCENTRACIÓN SUBVERSIVA", "POSIBLE UBICACIÓN DE CILINDROS", "POSIBLE UBICACIÓN M-60", "POTRERO", "POZO", "PROCURADURIA", "PUENTE", "PUNTOS EMBOSCADA", "QUEBRADA", "REGISTRADURIA", "RESGUADO INDÍGENA", "RIO", "RUTA DE DESPLIEQUE", "SALON COMUNAL", "SUBESTACIÓN DE POLICIA", "SUBESTACIÓN ELÉCTRICA", "TELECOMUNICACIONES", "TERMINAL DE TRANSPORTE", "TORRE", "TRAMO CRÍTICO", "TRAPICHE", "TÚNEL", "VÍA DE ACCESO", "VIADUCTO", "ZONA BOSCOSAZONA", "ZONA INSDUSTRIAL", "ZONAS DE DESEMBARQUE"];
+    const respuesta = await mostrarModal(opciones, "ACUEDUCTO");
 
     if (!respuesta) return; // Cancelado
 
-    const nombre = respuesta;
-    layer.feature = { type: "Feature", properties: { nombre } };
+    const nombre = respuesta.nombre;
+    const descripcion = respuesta.descripcion;
+    layer.feature = { type: "Feature", properties: { nombre, descripcion } };
     const center = layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter();
 
     let popupContent = `<strong>Nombre:</strong> ${nombre}<br/>`;
+    if (descripcion && descripcion.trim() !== "") {
+      popupContent += `<strong>Descripción:</strong> ${descripcion}<br/>`;
+    }
     if (layer instanceof L.Marker) {
       popupContent += `<a href="https://www.google.com/maps?q=&layer=c&cbll=${center.lat},${center.lng}" target="_blank">
                          <div class="streetview-btn">Abrir Street View</div></a>`;
@@ -225,21 +236,28 @@ const respuesta = await mostrarModal(opciones, "ACUEDUCTO");
   map.on(L.Draw.Event.EDITED, async function (e) {
     const editedLayers = e.layers;
     let nombre = "Sin nombre";
+    let descripcion = "";
 
     editedLayers.eachLayer(layer => {
       nombre = layer.feature.properties.nombre || "Sin nombre";
+      descripcion = layer.feature.properties.descripcion || "";
     });
 
     const opciones = ["ACUEDUCTO", "AEROPUERTO", "ALCALDIA", "ALCANTARILLA", "ANCIANATO", "ANTENA", "BOMBREROS", "CAMARA DE COMERCIO", "CANCHA", "CANTERA", "CAÑO", "CARCEL", "CASA DEL ALCALDE", "CEMENTERIO", "CERRO", "COLISEO", "COMISARIA DE FAMILIA", "CONTRALORIA", "CRUCE", "CRUZ ROJA", "DEFENSA CIVIL", "DEFENSORIA DEL PUEBLO", "DIAN", "EMPRESA MUNICIPAL", "EMPRESA PRIVADA", "ENTIDAD FINACIERA", "ENTIDADES EDUCATIVA", "ESTABLECIMIENTO PÚBLICO", "ESTACIÓN DE FERROCARRIL", "ESTACIÓN DE GASOLINA", "ESTACIÓN DE POLICIA", "ESTADIO", "FISCALIA", "GASODUCTO", "GOBERNACION", "HELIPUERTO", "HOSPITAL", "ICBF", "IGLESIA", "INSPECCION DE POLICIA", "JUZGADO", "LAGUNA", "MATADERO", "MINISTERIO", "MUELLE", "NOTARIA", "OLEODUCTO", "PARQUE", "PARQUEADERO", "PEAJE", "PERSONERIA", "PISTA DE ATERRIZAJE", "PLAZA DE MERCADO", "PLAZA DE TOROS", "POLIDEPORTIVO", "POSIBLE CONCENTRACIÓN SUBVERSIVA", "POSIBLE UBICACIÓN DE CILINDROS", "POSIBLE UBICACIÓN M-60", "POTRERO", "POZO", "PROCURADURIA", "PUENTE", "PUNTOS EMBOSCADA", "QUEBRADA", "REGISTRADURIA", "RESGUADO INDÍGENA", "RIO", "RUTA DE DESPLIEQUE", "SALON COMUNAL", "SUBESTACIÓN DE POLICIA", "SUBESTACIÓN ELÉCTRICA", "TELECOMUNICACIONES", "TERMINAL DE TRANSPORTE", "TORRE", "TRAMO CRÍTICO", "TRAPICHE", "TÚNEL", "VÍA DE ACCESO", "VIADUCTO", "ZONA BOSCOSAZONA", "ZONA INSDUSTRIAL", "ZONAS DE DESEMBARQUE"];
-    const respuesta = await mostrarModal(opciones, nombre);
+    const respuesta = await mostrarModal(opciones, nombre, descripcion);
 
     if (!respuesta) return; // Cancelado
 
     editedLayers.eachLayer(layer => {
-      const nombre = respuesta;
+      const nombre = respuesta.nombre;
+      const descripcion = respuesta.descripcion;
       layer.feature.properties.nombre = nombre;
+      layer.feature.properties.descripcion = descripcion;
       const center = layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter();
       let popupContent = `<strong>Nombre:</strong> ${nombre}<br/>`;
+      if (descripcion && descripcion.trim() !== "") {
+        popupContent += `<strong>Descripción:</strong> ${descripcion}<br/>`;
+      }
       if (layer instanceof L.Marker) {
         popupContent += `<a href="https://www.google.com/maps?q=&layer=c&cbll=${center.lat},${center.lng}" target="_blank">
                            <div class="streetview-btn">Abrir Street View</div></a>`;
@@ -268,8 +286,12 @@ const respuesta = await mostrarModal(opciones, "ACUEDUCTO");
       L.geoJSON(geojson, {
         onEachFeature: function (feature, layer) {
           const nombre = feature.properties?.nombre || "Sin nombre";
+          const descripcion = feature.properties?.descripcion || "";
           const center = layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter();
           let popupContent = `<strong>Nombre:</strong> ${nombre}<br/>`;
+          if (descripcion && descripcion.trim() !== "") {
+            popupContent += `<strong>Descripción:</strong> ${descripcion}<br/>`;
+          }
           if (layer instanceof L.Marker) {
             popupContent += `<a href="https://www.google.com/maps?q=&layer=c&cbll=${center.lat},${center.lng}" target="_blank">
                                <div class="streetview-btn">Abrir Street View</div></a>`;
